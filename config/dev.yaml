@@ -1,0 +1,13 @@
+data:
+  sample_fraction: 0.1
+
+model:
+  experiment_name: "bnpl-default-prediction-dev"
+
+tracking:
+  backend: "local"
+  tracking_uri: "mlruns"
+
+logging:
+  level: "DEBUG"
+  json_output: false

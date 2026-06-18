@@ -1,0 +1,56 @@
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  standard:
+    format: "%(asctime)s | %(levelname)-5s | %(name)s | %(funcName)s | %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+  colored:
+    class: "colorlog.ColoredFormatter"
+    format: "%(log_color)s%(asctime)s | %(levelname)-5s | %(name)s | %(funcName)s | %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+    log_colors:
+      DEBUG: "cyan"
+      INFO: "green"
+      WARNING: "yellow"
+      ERROR: "red"
+      CRITICAL: "bold_red"
+  json:
+    class: "bnpl.logger.logger_config.JsonFormatter"
+
+handlers:
+  console:
+    class: "logging.StreamHandler"
+    level: "DEBUG"
+    formatter: "colored"
+    stream: "ext://sys.stdout"
+  file_app:
+    class: "logging.handlers.RotatingFileHandler"
+    level: "INFO"
+    formatter: "standard"
+    filename: "logs/app.log"
+    maxBytes: 10485760
+    backupCount: 5
+    encoding: "utf-8"
+  file_error:
+    class: "logging.handlers.RotatingFileHandler"
+    level: "ERROR"
+    formatter: "standard"
+    filename: "logs/error.log"
+    maxBytes: 10485760
+    backupCount: 5
+    encoding: "utf-8"
+
+loggers:
+  bnpl:
+    level: "DEBUG"
+    handlers: ["console", "file_app", "file_error"]
+    propagate: false
+  __main__:
+    level: "DEBUG"
+    handlers: ["console", "file_app", "file_error"]
+    propagate: false
+
+root:
+  level: "WARNING"
+  handlers: ["console"]

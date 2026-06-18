@@ -1,0 +1,13 @@
+data:
+  sample_fraction: 1.0
+
+tracking:
+  backend: "dagshub"
+  tracking_uri: "https://dagshub.com/DAGSHUB_USERNAME/DAGSHUB_REPO.mlflow"
+
+logging:
+  level: "INFO"
+  json_output: true
+
+serving:
+  workers: 2

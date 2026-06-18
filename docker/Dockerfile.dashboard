@@ -1,0 +1,6 @@
+# TODO: Implement Dashboard Dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY . .
+# RUN pip install .
+# CMD ["streamlit", "run", "dashboard/app.py", "--server.port=8501"]

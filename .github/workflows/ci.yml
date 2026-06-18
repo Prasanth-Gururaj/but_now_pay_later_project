@@ -1,0 +1,12 @@
+# TODO: Implement CI pipeline (lint + unit tests on every PR)
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # TODO: Add Python setup, uv install, lint, test steps

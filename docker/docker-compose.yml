@@ -1,0 +1,20 @@
+# TODO: Implement docker-compose for local multi-service development
+version: "3.9"
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dashboard
+    ports:
+      - "8501:8501"
+    env_file:
+      - ../.env

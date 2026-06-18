@@ -1,0 +1,10 @@
+# TODO: Implement drift-triggered retraining pipeline
+name: Retrain
+on:
+  workflow_dispatch:
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # TODO: Add retraining pipeline steps

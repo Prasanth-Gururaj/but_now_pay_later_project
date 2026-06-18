@@ -1,0 +1,30 @@
+project:
+  name: "bnpl-default-prediction"
+  version: "0.1.0"
+
+data:
+  raw_dir: "data/raw"
+  interim_dir: "data/interim"
+  processed_dir: "data/processed"
+  reference_dir: "data/reference"
+  test_size: 0.2
+  random_state: 42
+  sample_fraction: 1.0
+
+model:
+  target_column: "default"
+  primary_metric: "f1"
+  experiment_name: "bnpl-default-prediction"
+
+serving:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+
+monitoring:
+  drift_check_interval_hours: 24
+  psi_threshold: 0.2
+
+logging:
+  level: "INFO"
+  json_output: false

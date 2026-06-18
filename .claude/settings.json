@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(grep -E \"\\(mlruns|\\\\.venv|\\\\.env$|app\\\\.log|error\\\\.log\\)\")"
+    ]
+  }
+}
