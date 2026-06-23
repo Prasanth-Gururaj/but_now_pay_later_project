@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(git add *)",
-      "Bash(grep -E \"\\(mlruns|\\\\.venv|\\\\.env$|app\\\\.log|error\\\\.log\\)\")"
+      "Bash(grep -E \"\\(mlruns|\\\\.venv|\\\\.env$|app\\\\.log|error\\\\.log\\)\")",
+      "PowerShell(py --list)",
+      "PowerShell(py -3.14 -m venv bnpl)",
+      "PowerShell(& \"d:\\\\Project\\\\BNPL\\\\but_now_pay_later_project\\\\bnpl\\\\Scripts\\\\python.exe\" --version)",
+      "PowerShell(python --version)",
+      "PowerShell(uv pip install -e \".[dev,test]\" --dry-run 2>&1)",
+      "PowerShell(uv venv \"d:\\\\Project\\\\BNPL\\\\but_now_pay_later_project\\\\bnpl\" --python \"C:\\\\Python314\\\\python.exe\")",
+      "PowerShell(uv pip install -e \".[dev,test]\" --python \"d:\\\\Project\\\\BNPL\\\\but_now_pay_later_project\\\\bnpl\\\\Scripts\\\\python.exe\")",
+      "PowerShell(uv pip install pyarrow --python \"d:\\\\Project\\\\BNPL\\\\but_now_pay_later_project\\\\bnpl\\\\Scripts\\\\python.exe\" --dry-run 2>&1)",
+      "PowerShell(uv python list 2>&1)",
+      "PowerShell(uv pip install -e \".[dev,test]\" --python \"d:\\\\Project\\\\BNPL\\\\but_now_pay_later_project\\\\bnpl\\\\Scripts\\\\python.exe\" --upgrade 2>&1)"
     ]
   }
 }
