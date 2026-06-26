@@ -11,6 +11,14 @@ data:
   random_state: 42
   sample_fraction: 1.0
 
+paths:
+  model_path: "models/champion_xgboost.pkl"
+  config_path: "reports/data_prep_config.json"
+  monitoring_log_path: "reports/monitoring_log.json"
+  drift_reports_dir: "reports/drift_reports/"
+  train_data_path: "data/processed/train.parquet"
+  processed_data_dir: "data/processed/"
+
 model:
   target_column: "default"
   primary_metric: "f1"

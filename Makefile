@@ -1,8 +1,8 @@
 .PHONY: install lint format test smoke train serve dashboard clean
 
 install:
-	uv venv .venv
-	uv pip install -e ".[dev,test]"
+	uv venv --python 3.12 npl
+	uv pip install --python npl/Scripts/python -e ".[dev,test]"
 
 lint:
 	uv run ruff check src/ tests/
@@ -28,4 +28,4 @@ dashboard:
 	uv run streamlit run dashboard/app.py
 
 clean:
-	rm -rf .venv __pycache__ .pytest_cache .mypy_cache mlruns/ logs/*.log dist/ build/ *.egg-info
+	rm -rf npl __pycache__ .pytest_cache .mypy_cache mlruns/ logs/*.log dist/ build/ *.egg-info

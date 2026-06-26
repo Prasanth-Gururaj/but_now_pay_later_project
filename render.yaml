@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: bnpl-prediction-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.bnpl.serving.api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: MODEL_PATH
+        value: models/champion_xgboost.pkl
+      - key: CONFIG_PATH
+        value: reports/data_prep_config.json
+      - key: DECISION_THRESHOLD
+        value: "0.47"
+      - key: PYTHON_VERSION
+        value: "3.11.9"

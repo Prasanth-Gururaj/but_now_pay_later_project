@@ -11,6 +11,8 @@ build/
 # Virtual environments
 .venv/
 venv/
+npl/
+bnpl/
 ENV/
 
 # Data directories (large files)

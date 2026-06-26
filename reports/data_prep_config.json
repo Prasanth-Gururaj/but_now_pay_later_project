@@ -1,6 +1,5 @@
 {
   "feature_set_version": "v2_rerun_safe",
-  "source_notebook_02_table": "../reports/feature_selection_table.csv",
   "temporal_split": {
     "train_years": [
       2013,
@@ -139,11 +138,7 @@
         "wedding"
       ]
     },
-    "unseen_category_handling": "all-zero one-hot row (no crash)",
-    "rejected_alternatives": {
-      "tfidf": "wrong data shape \u2014 single categorical labels, not free text",
-      "embeddings": "only justified for high-cardinality features in neural nets; low cardinality here (3-14 categories) makes one-hot the standard, interpretable, defensible choice"
-    }
+    "unseen_category_handling": "all-zero one-hot row (no crash)"
   },
   "outlier_handling": {
     "method": "99th percentile cap (TRAIN only), except revol_util (hard cap at 100)",
@@ -211,19 +206,5 @@
     "pub_rec_was_missing",
     "revol_bal_was_missing",
     "emp_length_num_was_missing"
-  ],
-  "final_shapes": {
-    "train": [
-      733451,
-      50
-    ],
-    "val": [
-      293095,
-      50
-    ],
-    "test": [
-      169300,
-      50
-    ]
-  }
+  ]
 }

@@ -59,12 +59,14 @@ class ProjectConfig(BaseModel):
 
 
 class PathsConfig(BaseModel):
-    """Data directory paths."""
+    """Serving and monitoring file paths."""
 
-    raw_dir: str = "data/raw"
-    interim_dir: str = "data/interim"
-    processed_dir: str = "data/processed"
-    reference_dir: str = "data/reference"
+    model_path: str = "models/champion_xgboost.pkl"
+    config_path: str = "reports/data_prep_config.json"
+    monitoring_log_path: str = "reports/monitoring_log.json"
+    drift_reports_dir: str = "reports/drift_reports/"
+    train_data_path: str = "data/processed/train.parquet"
+    processed_data_dir: str = "data/processed/"
 
 
 class DataConfig(BaseModel):
@@ -125,12 +127,13 @@ class FeatureDefinition(BaseModel):
 
 
 class ThresholdsConfig(BaseModel):
-    """Decision threshold and cost matrix."""
+    """Decision thresholds, cost matrix, and monitoring thresholds."""
 
-    default_threshold: float = 0.5
+    default_threshold: float = 0.45
     optimized_threshold: Optional[float] = None
     cost_matrix: dict[str, float] = Field(default_factory=dict)
     business_rules: dict[str, float] = Field(default_factory=dict)
+    monitoring: dict[str, float] = Field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -162,6 +165,7 @@ class Settings(BaseSettings):
 
     # Nested configs populated from YAML
     project: ProjectConfig = Field(default_factory=ProjectConfig)
+    paths: PathsConfig = Field(default_factory=PathsConfig)
     data: DataConfig = Field(default_factory=DataConfig)
     tracking: TrackingConfig = Field(default_factory=TrackingConfig)
     model: ModelConfig = Field(default_factory=ModelConfig)
@@ -189,6 +193,7 @@ class Settings(BaseSettings):
 
         for section in (
             "project",
+            "paths",
             "data",
             "tracking",
             "model",
@@ -210,10 +215,11 @@ class Settings(BaseSettings):
             if thresholds_raw:
                 decision = thresholds_raw.get("decision", {})
                 data["thresholds"] = {
-                    "default_threshold": decision.get("default_threshold", 0.5),
+                    "default_threshold": decision.get("default_threshold", 0.45),
                     "optimized_threshold": decision.get("optimized_threshold"),
                     "cost_matrix": thresholds_raw.get("cost_matrix", {}),
                     "business_rules": thresholds_raw.get("business_rules", {}),
+                    "monitoring": thresholds_raw.get("monitoring", {}),
                 }
 
         return data

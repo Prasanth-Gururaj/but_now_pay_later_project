@@ -80,11 +80,9 @@ class TestThresholds:
 class TestValidation:
     """Verify fail-fast validation."""
 
-    def test_staging_missing_secrets_fails(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("APP_ENV", "staging")
-        reset_settings()
+    def test_staging_missing_secrets_fails(self) -> None:
         with pytest.raises(ValueError, match="DAGSHUB_TOKEN"):
-            get_settings()
+            Settings(app_env="staging", dagshub_token=None)
 
     def test_threshold_out_of_range_fails(self) -> None:
         with pytest.raises(ValueError, match="outside allowed range"):

@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import os
+
 import mlflow
 import pytest
 
 from bnpl.tracking.mlflow_utils import configure_tracking, get_or_create_experiment, mlflow_run
 from config.settings import reset_settings
+
+os.environ["MLFLOW_ALLOW_FILE_STORE"] = "true"
 
 
 @pytest.fixture()
@@ -15,6 +19,7 @@ def mlflow_tmp(tmp_path: object, monkeypatch: pytest.MonkeyPatch) -> str:
     tracking_uri = tmp_path.as_uri()
     mlflow.set_tracking_uri(tracking_uri)
     monkeypatch.setenv("MLFLOW_TRACKING_URI", tracking_uri)
+    monkeypatch.setenv("MLFLOW_ALLOW_FILE_STORE", "true")
     return tracking_uri
 
 

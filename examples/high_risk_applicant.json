@@ -1,0 +1,19 @@
+{
+  "dti": 35.0,
+  "fico_range_low": 640,
+  "revol_util": 89.5,
+  "annual_inc": 28000.0,
+  "loan_amnt": 25000.0,
+  "int_rate": 24.5,
+  "sub_grade": "F3",
+  "term": "60 months",
+  "emp_length": "< 1 year",
+  "home_ownership": "RENT",
+  "verification_status": "Not Verified",
+  "purpose": "small_business",
+  "delinq_2yrs": 3.0,
+  "inq_last_6mths": 5.0,
+  "open_acc": 4.0,
+  "pub_rec": 1.0,
+  "revol_bal": 18000.0
+}

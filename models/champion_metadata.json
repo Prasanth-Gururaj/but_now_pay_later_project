@@ -52,15 +52,28 @@
     "revol_bal_was_missing",
     "emp_length_num_was_missing"
   ],
-  "decision_threshold": 0.31,
-  "threshold_selection_method": "minimum total business cost, false negative 300 dollars, false positive 45 dollars, documented assumption",
-  "test_set_metrics": {
-    "threshold": 0.31,
-    "auc": 0.7045473522173881,
-    "precision_default": 0.28325751692000445,
-    "recall_default": 0.9129968325329518,
-    "f1_default": 0.4323716203955725,
-    "brier_score": 0.20932243764400482
+  "decision_threshold": 0.47,
+  "threshold_selection_method": "minimum total business cost with 55% minimum approval rate",
+  "validation_metrics": {
+    "auc": 0.7140937107419831,
+    "brier_score": 0.20526579022407532,
+    "threshold": 0.5,
+    "precision_default": 0.37644738974626785,
+    "recall_default": 0.612657893965593,
+    "f1_default": 0.4663476553785749,
+    "threshold_at_0.3": 0.3,
+    "precision_default_at_0.3": 0.28340320569580224,
+    "recall_default_at_0.3": 0.9192725887283492,
+    "f1_default_at_0.3": 0.4332419422786069
   },
-  "scale_pos_weight": 4.315324520972839
+  "scale_pos_weight": 4.315324520972839,
+  "timestamp": "2026-06-25T19:24:35.677819+00:00",
+  "test_set_metrics": {
+    "auc": 0.7045510396163213,
+    "precision_default": 0.3392330025145467,
+    "recall_default": 0.7133442321446817,
+    "f1_default": 0.45980455918794094,
+    "brier_score": 0.2083374559879303,
+    "approval_rate_at_threshold": 0.5138
+  }
 }

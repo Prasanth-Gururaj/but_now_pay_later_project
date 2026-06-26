@@ -1,12 +1,22 @@
 decision:
-  default_threshold: 0.5
+  default_threshold: 0.45
   optimized_threshold: null
+
+monitoring:
+  psi_threshold: 0.25
+  min_drifted_features_for_retrain: 2
+  approval_rate_deviation_pct: 0.10
+  max_null_rate: 0.40
+  max_duplicate_rate: 0.20
+  scale_anomaly_multiplier: 10
 
 cost_matrix:
   true_positive: 0
   false_positive: -100
   true_negative: 0
   false_negative: -500
+  cost_false_negative: 300
+  cost_false_positive: 45
 
 business_rules:
   min_threshold: 0.1
