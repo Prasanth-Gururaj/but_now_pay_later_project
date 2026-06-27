@@ -35,11 +35,22 @@ jobs:
           source npl/bin/activate
           python -m bnpl.main retrain \
             --window ${{ inputs.window }} | tee retrain_output.txt
-          if grep -q "champion_updated: true" retrain_output.txt; then
+          if grep -q '"decision": "promoted"' retrain_output.txt; then
             echo "CHAMPION_UPDATED=true" >> $GITHUB_OUTPUT
           else
             echo "CHAMPION_UPDATED=false" >> $GITHUB_OUTPUT
           fi
+      - name: Commit updated model
+        if: steps.retrain.outputs.CHAMPION_UPDATED == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add models/champion_xgboost.pkl models/champion_metadata.json
+          git commit -m "chore: update champion model after drift-triggered retrain
+
+          Window: ${{ inputs.window }}
+          Reason: ${{ inputs.reason }}"
+          git push
       - name: Deploy to Render if champion updated
         if: steps.retrain.outputs.CHAMPION_UPDATED == 'true'
         run: |

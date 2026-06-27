@@ -26,7 +26,7 @@ jobs:
         run: |
           source npl/bin/activate
           python -m bnpl.main monitor --window 2018 | tee monitor_output.txt
-          if grep -q "should_retrain: true" monitor_output.txt; then
+          if grep -q '"should_retrain": true' monitor_output.txt; then
             echo "RETRAIN_NEEDED=true" >> $GITHUB_OUTPUT
           else
             echo "RETRAIN_NEEDED=false" >> $GITHUB_OUTPUT

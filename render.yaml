@@ -2,7 +2,7 @@ services:
   - type: web
     name: bnpl-prediction-api
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements-serve.txt
     startCommand: uvicorn src.bnpl.serving.api:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: MODEL_PATH
@@ -12,4 +12,8 @@ services:
       - key: DECISION_THRESHOLD
         value: "0.47"
       - key: PYTHON_VERSION
-        value: "3.11.9"
+        value: "3.12.7"
+      - key: APP_ENV
+        value: render
+      - key: CHALLENGER_MODEL_PATH
+        value: ""
