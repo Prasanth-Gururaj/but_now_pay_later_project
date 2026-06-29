@@ -1,5 +1,5 @@
 {
-  "test_date": "2026-06-29T20:06:49.541413+00:00",
+  "test_date": "2026-06-29T22:41:48.467293+00:00",
   "test_set": "2017 data, 169300 rows",
   "champion_model": "xgboost",
   "challenger_model": "lightgbm",
@@ -21,8 +21,8 @@
     "challenger": 0.2792
   },
   "auc": {
-    "champion": 0.7046,
-    "challenger": 0.6919
+    "champion": 0.7047,
+    "challenger": 0.6917
   },
   "z_test": {
     "z_statistic": -181.6129,
@@ -36,5 +36,5 @@
     "significant_at_0.05": true
   },
   "recommendation": "keep_champion",
-  "reason": "Champion XGBoost (AUC=0.7046) outperforms challenger LightGBM (AUC=0.6919). Approval rates: champion=0.5540, challenger=1.0000."
+  "reason": "Champion XGBoost (AUC=0.7047) outperforms challenger LightGBM (AUC=0.6917). Approval rates: champion=0.5540, challenger=1.0000."
 }

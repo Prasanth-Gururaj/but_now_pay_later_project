@@ -151,11 +151,8 @@ def simulate_ab_test(
 ) -> pd.DataFrame:
     print("\n=== Step 2: Simulating A/B test on test set ===")
 
-    X_test = test[feature_cols]
-    y_test = test["default"]
-
-    champion_proba = champion_model.predict_proba(X_test)[:, 1]
-    challenger_proba = challenger_model.predict_proba(X_test)[:, 1]
+    X_test = test[feature_cols].values
+    y_test = test["default"].values
 
     rng = np.random.RandomState(RANDOM_SEED)
     assignment = rng.choice(
@@ -164,10 +161,28 @@ def simulate_ab_test(
         p=[CHAMPION_PCT, 1 - CHAMPION_PCT],
     )
 
-    champion_decision = np.where(champion_proba >= CHAMPION_THRESHOLD, "deny", "approve")
-    challenger_decision = np.where(
-        challenger_proba >= CHAMPION_THRESHOLD, "deny", "approve"
-    )
+    champ_mask = assignment == "champion"
+    chall_mask = ~champ_mask
+
+    prediction_proba = np.full(len(test), np.nan)
+    prediction_proba[champ_mask] = champion_model.predict_proba(
+        X_test[champ_mask]
+    )[:, 1]
+    prediction_proba[chall_mask] = challenger_model.predict_proba(
+        X_test[chall_mask]
+    )[:, 1]
+
+    decision = np.where(prediction_proba >= CHAMPION_THRESHOLD, "deny", "approve")
+
+    n_champ = int(champ_mask.sum())
+    n_chall = int(chall_mask.sum())
+    print(f"  Champion:   {n_champ} ({n_champ / len(test):.1%})")
+    print(f"  Challenger: {n_chall} ({n_chall / len(test):.1%})")
+
+    champ_approve = (decision[champ_mask] == "approve").sum()
+    chall_approve = (decision[chall_mask] == "approve").sum()
+    print(f"  Champion approval rate:   {champ_approve / n_champ:.4f}")
+    print(f"  Challenger approval rate: {chall_approve / n_chall:.4f}")
 
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     log_path = REPORTS_DIR / "ab_test_log.jsonl"
@@ -175,43 +190,29 @@ def simulate_ab_test(
 
     with open(log_path, "w", encoding="utf-8") as f:
         for i in range(len(test)):
-            assigned = assignment[i]
-            proba = float(
-                champion_proba[i] if assigned == "champion" else challenger_proba[i]
-            )
-            decision = (
-                champion_decision[i] if assigned == "champion" else challenger_decision[i]
-            )
             entry = {
                 "model_version": (
                     "champion_xgboost_v1"
-                    if assigned == "champion"
+                    if champ_mask[i]
                     else "challenger_lgbm_v1"
                 ),
                 "loan_amnt": float(test.iloc[i]["loan_amnt"]),
                 "int_rate": float(test.iloc[i]["int_rate"]),
                 "fico_range_low": float(test.iloc[i]["fico_range_low"]),
-                "prediction_proba": round(proba, 4),
-                "decision": decision,
+                "prediction_proba": round(float(prediction_proba[i]), 4),
+                "decision": decision[i],
                 "timestamp": now,
             }
             f.write(json.dumps(entry) + "\n")
 
     print(f"  Logged {len(test)} predictions to {log_path}")
 
-    n_champ = (assignment == "champion").sum()
-    n_chall = (assignment == "challenger").sum()
-    print(f"  Champion: {n_champ} ({n_champ/len(test):.1%})")
-    print(f"  Challenger: {n_chall} ({n_chall/len(test):.1%})")
-
     results_df = pd.DataFrame(
         {
             "assignment": assignment,
-            "champion_proba": champion_proba,
-            "challenger_proba": challenger_proba,
-            "champion_decision": champion_decision,
-            "challenger_decision": challenger_decision,
-            "actual_default": y_test.values,
+            "prediction_proba": prediction_proba,
+            "decision": decision,
+            "actual_default": y_test,
         }
     )
     return results_df
@@ -229,22 +230,28 @@ def run_statistical_analysis(
     n_champ = int(champ_mask.sum())
     n_chall = int(chall_mask.sum())
 
-    champ_approved = (results_df.loc[champ_mask, "champion_decision"] == "approve").sum()
-    chall_approved = (
-        results_df.loc[chall_mask, "challenger_decision"] == "approve"
-    ).sum()
+    champ_decisions = results_df.loc[champ_mask, "decision"]
+    chall_decisions = results_df.loc[chall_mask, "decision"]
+    champ_approved = int((champ_decisions == "approve").sum())
+    chall_approved = int((chall_decisions == "approve").sum())
 
     p_champ = champ_approved / n_champ
     p_chall = chall_approved / n_chall
 
-    champ_avg_prob = float(results_df.loc[champ_mask, "champion_proba"].mean())
-    chall_avg_prob = float(results_df.loc[chall_mask, "challenger_proba"].mean())
+    champ_avg_prob = float(results_df.loc[champ_mask, "prediction_proba"].mean())
+    chall_avg_prob = float(results_df.loc[chall_mask, "prediction_proba"].mean())
 
     champ_auc = float(
-        roc_auc_score(results_df["actual_default"], results_df["champion_proba"])
+        roc_auc_score(
+            results_df.loc[champ_mask, "actual_default"],
+            results_df.loc[champ_mask, "prediction_proba"],
+        )
     )
     chall_auc = float(
-        roc_auc_score(results_df["actual_default"], results_df["challenger_proba"])
+        roc_auc_score(
+            results_df.loc[chall_mask, "actual_default"],
+            results_df.loc[chall_mask, "prediction_proba"],
+        )
     )
 
     p_pool = (champ_approved + chall_approved) / (n_champ + n_chall)
@@ -255,8 +262,8 @@ def run_statistical_analysis(
 
     contingency = np.array(
         [
-            [int(champ_approved), int(n_champ - champ_approved)],
-            [int(chall_approved), int(n_chall - chall_approved)],
+            [champ_approved, n_champ - champ_approved],
+            [chall_approved, n_chall - chall_approved],
         ]
     )
     chi2, chi2_p, chi2_dof, _ = stats.chi2_contingency(contingency)
@@ -280,7 +287,8 @@ def run_statistical_analysis(
         reason = (
             f"Champion XGBoost (AUC={champ_auc:.4f}) outperforms "
             f"challenger LightGBM (AUC={chall_auc:.4f}). "
-            f"Approval rates: champion={p_champ:.4f}, challenger={p_chall:.4f}."
+            f"Approval rates: champion={p_champ:.4f}, "
+            f"challenger={p_chall:.4f}."
         )
 
     analysis = {
@@ -299,7 +307,10 @@ def run_statistical_analysis(
             "champion": round(champ_avg_prob, 4),
             "challenger": round(chall_avg_prob, 4),
         },
-        "auc": {"champion": round(champ_auc, 4), "challenger": round(chall_auc, 4)},
+        "auc": {
+            "champion": round(champ_auc, 4),
+            "challenger": round(chall_auc, 4),
+        },
         "z_test": {
             "z_statistic": round(z_stat, 4),
             "p_value": round(z_pvalue, 6),
@@ -376,9 +387,12 @@ def generate_plots(
     plt.close()
     print(f"  Saved: {path1}")
 
+    champ_mask = results_df["assignment"] == "champion"
+    chall_mask = results_df["assignment"] == "challenger"
+
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.hist(
-        results_df["champion_proba"],
+        results_df.loc[champ_mask, "prediction_proba"],
         bins=80,
         alpha=0.5,
         label="Champion (XGBoost)",
@@ -386,7 +400,7 @@ def generate_plots(
         density=True,
     )
     ax.hist(
-        results_df["challenger_proba"],
+        results_df.loc[chall_mask, "prediction_proba"],
         bins=80,
         alpha=0.5,
         label="Challenger (LightGBM)",
@@ -413,12 +427,13 @@ def generate_plots(
     print(f"  Saved: {path2}")
 
     fig, ax = plt.subplots(figsize=(8, 7))
-    y_true = results_df["actual_default"]
 
-    for name, proba, color in [
-        ("Champion (XGBoost)", results_df["champion_proba"], "#2196F3"),
-        ("Challenger (LightGBM)", results_df["challenger_proba"], "#FF9800"),
+    for name, mask, color in [
+        ("Champion (XGBoost)", champ_mask, "#2196F3"),
+        ("Challenger (LightGBM)", chall_mask, "#FF9800"),
     ]:
+        y_true = results_df.loc[mask, "actual_default"]
+        proba = results_df.loc[mask, "prediction_proba"]
         fpr, tpr, _ = roc_curve(y_true, proba)
         auc_val = roc_auc_score(y_true, proba)
         ax.plot(fpr, tpr, label=f"{name} (AUC={auc_val:.4f})", linewidth=2, color=color)
