@@ -1,9 +1,12 @@
 {
-  "test_date": "2026-06-29T22:41:48.467293+00:00",
+  "test_date": "2026-06-29T22:49:43.677393+00:00",
   "test_set": "2017 data, 169300 rows",
   "champion_model": "xgboost",
   "challenger_model": "lightgbm",
-  "threshold": 0.47,
+  "thresholds": {
+    "champion": 0.47,
+    "challenger": 0.29
+  },
   "traffic_split": {
     "champion": 0.7,
     "challenger": 0.30000000000000004
@@ -14,27 +17,27 @@
   },
   "approval_rates": {
     "champion": 0.554,
-    "challenger": 1.0
+    "challenger": 0.5284
   },
   "avg_default_probability": {
     "champion": 0.439,
-    "challenger": 0.2792
+    "challenger": 0.282
   },
   "auc": {
     "champion": 0.7047,
-    "challenger": 0.6917
+    "challenger": 0.6916
   },
   "z_test": {
-    "z_statistic": -181.6129,
+    "z_statistic": 9.7122,
     "p_value": 0.0,
     "significant_at_0.05": true
   },
   "chi_square_test": {
-    "chi2_statistic": 32981.1528,
+    "chi2_statistic": 94.224,
     "p_value": 0.0,
     "degrees_of_freedom": 1,
     "significant_at_0.05": true
   },
   "recommendation": "keep_champion",
-  "reason": "Champion XGBoost (AUC=0.7047) outperforms challenger LightGBM (AUC=0.6917). Approval rates: champion=0.5540, challenger=1.0000."
+  "reason": "Champion XGBoost (AUC=0.7047) outperforms challenger LightGBM (AUC=0.6916). Approval rates: champion=0.5540, challenger=0.5284."
 }

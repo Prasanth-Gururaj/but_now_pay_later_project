@@ -467,11 +467,20 @@ def page_ab_testing():
         """)
 
     st.divider()
+    thresholds = results.get("thresholds", results.get("threshold", {}))
+    if isinstance(thresholds, dict):
+        thresh_str = (
+            f"Champion={thresholds.get('champion', 'N/A')}, "
+            f"Challenger={thresholds.get('challenger', 'N/A')}"
+        )
+    else:
+        thresh_str = str(thresholds)
+    split = results.get("traffic_split", {})
     st.caption(
         f"Test date: {results.get('test_date', 'N/A')[:19]} | "
-        f"Threshold: {results.get('threshold', 'N/A')} | "
-        f"Traffic split: {results.get('traffic_split', {}).get('champion', 0):.0%} champion / "
-        f"{results.get('traffic_split', {}).get('challenger', 0):.0%} challenger"
+        f"Thresholds: {thresh_str} | "
+        f"Traffic split: {split.get('champion', 0):.0%} champion / "
+        f"{split.get('challenger', 0):.0%} challenger"
     )
 
 

@@ -18,6 +18,7 @@ import pandas as pd
 from scipy import stats
 from sklearn.metrics import (
     brier_score_loss,
+    confusion_matrix,
     f1_score,
     precision_score,
     recall_score,
@@ -54,50 +55,102 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, list[str]]:
     return train, val, test, feature_cols
 
 
+COST_FALSE_NEGATIVE = 300
+COST_FALSE_POSITIVE = 45
+MIN_APPROVAL_RATE = 0.55
+
+
+def _select_threshold(y_true: np.ndarray, y_proba: np.ndarray) -> float:
+    """Select threshold via minimum business cost with >=55% approval rate."""
+    thresholds = np.arange(0.05, 0.95, 0.01)
+    best_threshold = 0.50
+    best_cost = float("inf")
+
+    for t in thresholds:
+        y_pred = (y_proba >= t).astype(int)
+        tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+        total_cost = (fn * COST_FALSE_NEGATIVE) + (fp * COST_FALSE_POSITIVE)
+        approval_rate = float((y_proba < t).mean())
+        if approval_rate >= MIN_APPROVAL_RATE and total_cost < best_cost:
+            best_cost = total_cost
+            best_threshold = round(float(t), 2)
+
+    return best_threshold
+
+
 def train_challenger(
     train: pd.DataFrame,
     val: pd.DataFrame,
     test: pd.DataFrame,
     feature_cols: list[str],
-) -> lgb.LGBMClassifier:
+) -> tuple[lgb.LGBMClassifier, float]:
+    """Train LightGBM challenger and return (model, threshold)."""
     print("=== Step 1: Training LightGBM challenger ===")
 
     X_train, y_train = train[feature_cols], train["default"]
     X_val, y_val = val[feature_cols], val["default"]
     X_test, y_test = test[feature_cols], test["default"]
 
-    scale_pos_weight = float((y_train == 0).sum() / (y_train == 1).sum())
-    print(f"  scale_pos_weight: {scale_pos_weight:.3f}")
-
     model = lgb.LGBMClassifier(
         n_estimators=500,
         learning_rate=0.05,
         num_leaves=31,
-        scale_pos_weight=scale_pos_weight,
+        min_child_samples=50,
+        scale_pos_weight=4,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        reg_alpha=0.1,
+        reg_lambda=0.1,
         random_state=RANDOM_SEED,
-        verbose=-1,
         n_jobs=-1,
+        verbose=-1,
     )
     model.fit(
         X_train,
         y_train,
         eval_set=[(X_val, y_val)],
-        eval_metric="auc",
         callbacks=[
-            lgb.early_stopping(30, verbose=False),
-            lgb.log_evaluation(period=-1),
+            lgb.early_stopping(stopping_rounds=50, verbose=True),
+            lgb.log_evaluation(period=50),
         ],
     )
     print(f"  Best iteration: {model.best_iteration_}")
 
+    val_proba = model.predict_proba(X_val)[:, 1]
+    test_proba = model.predict_proba(X_test)[:, 1]
+
+    val_auc = roc_auc_score(y_val, val_proba)
+    print(f"  Validation AUC: {val_auc:.4f}")
+
+    print("  Probability distribution (validation set):")
+    print(f"    min={val_proba.min():.4f}  max={val_proba.max():.4f}")
+    print(f"    mean={val_proba.mean():.4f}  median={np.median(val_proba):.4f}")
+
+    approval_at_champion = float((val_proba < CHAMPION_THRESHOLD).mean())
+    print(f"  Approval rate at champion threshold ({CHAMPION_THRESHOLD}): "
+          f"{approval_at_champion:.4f}")
+
+    if 0.40 <= approval_at_champion <= 0.70:
+        threshold = CHAMPION_THRESHOLD
+        threshold_method = "same as champion (approval rate in valid range)"
+        print(f"  Threshold: {threshold} (champion threshold is valid)")
+    else:
+        print(f"  Approval rate {approval_at_champion:.2%} outside 40-70% range")
+        print("  Running constrained threshold selection...")
+        threshold = _select_threshold(y_val.values, val_proba)
+        new_approval = float((val_proba < threshold).mean())
+        threshold_method = (
+            "minimum total business cost with 55% minimum approval rate"
+        )
+        print(f"  Selected threshold: {threshold}")
+        print(f"  Approval rate at new threshold: {new_approval:.4f}")
+
+    val_pred = (val_proba >= threshold).astype(int)
+    test_pred = (test_proba >= threshold).astype(int)
+
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, MODELS_DIR / "challenger_lgbm.pkl")
     print(f"  Saved: {MODELS_DIR / 'challenger_lgbm.pkl'}")
-
-    val_proba = model.predict_proba(X_val)[:, 1]
-    val_pred = (val_proba >= CHAMPION_THRESHOLD).astype(int)
-    test_proba = model.predict_proba(X_test)[:, 1]
-    test_pred = (test_proba >= CHAMPION_THRESHOLD).astype(int)
 
     metadata = {
         "model_type": "lightgbm",
@@ -105,17 +158,22 @@ def train_challenger(
         "validated_on": "2016, val split",
         "tested_on": "2017, test split",
         "feature_columns": feature_cols,
-        "decision_threshold": CHAMPION_THRESHOLD,
-        "threshold_selection_method": "same as champion for fair A/B comparison",
-        "scale_pos_weight": scale_pos_weight,
+        "decision_threshold": threshold,
+        "threshold_selection_method": threshold_method,
+        "scale_pos_weight": 4,
         "best_iteration": model.best_iteration_,
         "hyperparameters": {
             "n_estimators": 500,
             "learning_rate": 0.05,
             "num_leaves": 31,
+            "min_child_samples": 50,
+            "subsample": 0.8,
+            "colsample_bytree": 0.8,
+            "reg_alpha": 0.1,
+            "reg_lambda": 0.1,
         },
         "validation_metrics": {
-            "auc": float(roc_auc_score(y_val, val_proba)),
+            "auc": float(val_auc),
             "precision_default": float(precision_score(y_val, val_pred)),
             "recall_default": float(recall_score(y_val, val_pred)),
             "f1_default": float(f1_score(y_val, val_pred)),
@@ -127,7 +185,9 @@ def train_challenger(
             "recall_default": float(recall_score(y_test, test_pred)),
             "f1_default": float(f1_score(y_test, test_pred)),
             "brier_score": float(brier_score_loss(y_test, test_proba)),
-            "approval_rate_at_threshold": float((test_proba < CHAMPION_THRESHOLD).mean()),
+            "approval_rate_at_threshold": float(
+                (test_proba < threshold).mean()
+            ),
         },
         "timestamp": datetime.now(UTC).isoformat(),
     }
@@ -136,11 +196,11 @@ def train_challenger(
         json.dump(metadata, f, indent=2)
     print(f"  Saved: {MODELS_DIR / 'challenger_metadata.json'}")
 
-    print(f"  Validation AUC: {metadata['validation_metrics']['auc']:.4f}")
     print(f"  Test AUC:       {metadata['test_set_metrics']['auc']:.4f}")
-    print(f"  Test approval:  {metadata['test_set_metrics']['approval_rate_at_threshold']:.4f}")
+    test_approval = metadata["test_set_metrics"]["approval_rate_at_threshold"]
+    print(f"  Test approval:  {test_approval:.4f}")
 
-    return model
+    return model, threshold
 
 
 def simulate_ab_test(
@@ -148,8 +208,12 @@ def simulate_ab_test(
     feature_cols: list[str],
     champion_model: object,
     challenger_model: lgb.LGBMClassifier,
+    champion_threshold: float,
+    challenger_threshold: float,
 ) -> pd.DataFrame:
     print("\n=== Step 2: Simulating A/B test on test set ===")
+    print(f"  Champion threshold:   {champion_threshold}")
+    print(f"  Challenger threshold: {challenger_threshold}")
 
     X_test = test[feature_cols].values
     y_test = test["default"].values
@@ -172,7 +236,8 @@ def simulate_ab_test(
         X_test[chall_mask]
     )[:, 1]
 
-    decision = np.where(prediction_proba >= CHAMPION_THRESHOLD, "deny", "approve")
+    threshold_arr = np.where(champ_mask, champion_threshold, challenger_threshold)
+    decision = np.where(prediction_proba >= threshold_arr, "deny", "approve")
 
     n_champ = int(champ_mask.sum())
     n_chall = int(chall_mask.sum())
@@ -221,6 +286,8 @@ def simulate_ab_test(
 def run_statistical_analysis(
     results_df: pd.DataFrame,
     out_path: Path,
+    champion_threshold: float,
+    challenger_threshold: float,
 ) -> dict:
     print("\n=== Step 3: Statistical analysis ===")
 
@@ -296,7 +363,10 @@ def run_statistical_analysis(
         "test_set": "2017 data, 169300 rows",
         "champion_model": "xgboost",
         "challenger_model": "lightgbm",
-        "threshold": CHAMPION_THRESHOLD,
+        "thresholds": {
+            "champion": champion_threshold,
+            "challenger": challenger_threshold,
+        },
         "traffic_split": {"champion": CHAMPION_PCT, "challenger": 1 - CHAMPION_PCT},
         "sample_sizes": {"champion": n_champ, "challenger": n_chall},
         "approval_rates": {
@@ -407,13 +477,23 @@ def generate_plots(
         color="#FF9800",
         density=True,
     )
+    champ_thresh = analysis["thresholds"]["champion"]
+    chall_thresh = analysis["thresholds"]["challenger"]
     ax.axvline(
-        CHAMPION_THRESHOLD,
-        color="red",
+        champ_thresh,
+        color="#2196F3",
         linestyle="--",
-        linewidth=2,
-        label=f"Threshold ({CHAMPION_THRESHOLD})",
+        linewidth=1.5,
+        label=f"Champion threshold ({champ_thresh})",
     )
+    if chall_thresh != champ_thresh:
+        ax.axvline(
+            chall_thresh,
+            color="#FF9800",
+            linestyle="--",
+            linewidth=1.5,
+            label=f"Challenger threshold ({chall_thresh})",
+        )
     ax.set_xlabel("Predicted Default Probability")
     ax.set_ylabel("Density")
     ax.set_title(
@@ -459,16 +539,24 @@ def main() -> None:
     print(f"Data loaded: train={len(train)}, val={len(val)}, test={len(test)}")
     print(f"Features: {len(feature_cols)}")
 
-    challenger = train_challenger(train, val, test, feature_cols)
+    challenger, challenger_threshold = train_challenger(
+        train, val, test, feature_cols,
+    )
 
     champion = joblib.load(MODELS_DIR / "champion_xgboost.pkl")
     print(f"\nChampion loaded: {MODELS_DIR / 'champion_xgboost.pkl'}")
 
-    results_df = simulate_ab_test(test, feature_cols, champion, challenger)
+    results_df = simulate_ab_test(
+        test, feature_cols, champion, challenger,
+        champion_threshold=CHAMPION_THRESHOLD,
+        challenger_threshold=challenger_threshold,
+    )
 
     analysis = run_statistical_analysis(
         results_df,
         REPORTS_DIR / "ab_test_results.json",
+        champion_threshold=CHAMPION_THRESHOLD,
+        challenger_threshold=challenger_threshold,
     )
 
     generate_plots(results_df, analysis, REPORTS_DIR)

@@ -52,29 +52,34 @@
     "revol_bal_was_missing",
     "emp_length_num_was_missing"
   ],
-  "decision_threshold": 0.47,
-  "threshold_selection_method": "same as champion for fair A/B comparison",
-  "scale_pos_weight": 4.315324520972839,
-  "best_iteration": 8,
+  "decision_threshold": 0.29,
+  "threshold_selection_method": "minimum total business cost with 55% minimum approval rate",
+  "scale_pos_weight": 4,
+  "best_iteration": 9,
   "hyperparameters": {
     "n_estimators": 500,
     "learning_rate": 0.05,
-    "num_leaves": 31
+    "num_leaves": 31,
+    "min_child_samples": 50,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "reg_alpha": 0.1,
+    "reg_lambda": 0.1
   },
   "validation_metrics": {
-    "auc": 0.7012168075245109,
-    "precision_default": 0.0,
-    "recall_default": 0.0,
-    "f1_default": 0.0,
-    "brier_score": 0.16910328850495443
+    "auc": 0.7019043268691426,
+    "precision_default": 0.35371505456719987,
+    "recall_default": 0.6587438820667624,
+    "f1_default": 0.46028064894308696,
+    "brier_score": 0.16850795741872454
   },
   "test_set_metrics": {
-    "auc": 0.691892693171643,
-    "precision_default": 0.0,
-    "recall_default": 0.0,
-    "f1_default": 0.0,
-    "brier_score": 0.169534802653993,
-    "approval_rate_at_threshold": 1.0
+    "auc": 0.6920054782579812,
+    "precision_default": 0.3367657849245731,
+    "recall_default": 0.6917083886788598,
+    "f1_default": 0.45298895087698754,
+    "brier_score": 0.169216942300117,
+    "approval_rate_at_threshold": 0.525050206733609
   },
-  "timestamp": "2026-06-29T22:41:30.045538+00:00"
+  "timestamp": "2026-06-29T22:49:13.524005+00:00"
 }
