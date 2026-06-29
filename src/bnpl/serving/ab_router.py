@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from bnpl.logger import LoggerMixin, log_execution
@@ -94,7 +94,8 @@ class ABRouter(LoggerMixin):
             except Exception as exc:
                 self.logger.warning("Challenger scoring failed: %s", exc)
 
-        returned = challenger_result if (assigned == "challenger" and challenger_result) else champion_result
+        use_challenger = assigned == "challenger" and challenger_result
+        returned = challenger_result if use_challenger else champion_result
         returned["assigned_model"] = assigned
         returned["request_id"] = request_id
 
@@ -153,7 +154,8 @@ class ABRouter(LoggerMixin):
 
         total = champion_count + challenger_count
         agree = sum(
-            1 for c, ch in zip(champion_decisions, challenger_decisions) if c == ch
+            1 for c, ch in zip(champion_decisions, challenger_decisions, strict=False)
+            if c == ch
         ) if challenger_decisions else 0
 
         return {
@@ -164,7 +166,9 @@ class ABRouter(LoggerMixin):
             "challenger_approval_rate": self._approval_rate(challenger_decisions),
             "champion_avg_probability": self._avg(champion_probs),
             "challenger_avg_probability": self._avg(challenger_probs),
-            "agreement_rate": round(agree / len(challenger_decisions), 4) if challenger_decisions else 0.0,
+            "agreement_rate": (
+                round(agree / len(challenger_decisions), 4) if challenger_decisions else 0.0
+            ),
             "has_challenger": self._challenger is not None,
         }
 
@@ -197,7 +201,7 @@ class ABRouter(LoggerMixin):
         """
         entry = {
             "request_id": request_id,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "assigned_model": assigned,
             "champion_probability": champion.get("default_probability"),
             "champion_decision": champion.get("decision"),

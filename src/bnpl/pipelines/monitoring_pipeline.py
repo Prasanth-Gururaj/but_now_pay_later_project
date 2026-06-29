@@ -8,7 +8,7 @@ for GitHub Actions or any scheduled monitoring job.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import joblib
@@ -150,7 +150,7 @@ class MonitoringPipeline(LoggerMixin):
             "approval_rate": round(approval_rate, 4),
             "baseline_approval_rate": round(baseline_rate, 4),
             "window": window_label,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         self._append_to_log(result)

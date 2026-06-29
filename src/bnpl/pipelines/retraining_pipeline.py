@@ -7,11 +7,8 @@ compares with current champion, and promotes if better.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-
-import joblib
-import pandas as pd
 
 from bnpl.logger import LoggerMixin, log_execution
 
@@ -97,7 +94,7 @@ class RetrainingPipeline(LoggerMixin):
             "new_auc": new_auc,
             "old_auc": old_auc,
             "champion_name": train_result.get("champion_name", "unknown"),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         self._append_to_log(result)

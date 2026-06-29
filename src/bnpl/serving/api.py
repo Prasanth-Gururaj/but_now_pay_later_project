@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import os
 import uuid
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from typing import AsyncGenerator
+from datetime import UTC, datetime
 
 from fastapi import FastAPI, HTTPException
 
@@ -31,7 +31,6 @@ from bnpl.serving.schemas import (
     LoanApplication,
     PredictionResponse,
 )
-
 
 _MODEL_PATH = os.getenv("MODEL_PATH", "models/champion_xgboost.pkl")
 _CONFIG_PATH = os.getenv("CONFIG_PATH", "reports/data_prep_config.json")
@@ -129,7 +128,7 @@ def health() -> HealthResponse:
             status="degraded",
             model_version="none",
             threshold=_THRESHOLD,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
 
     predictor = app.state.predictor
@@ -137,7 +136,7 @@ def health() -> HealthResponse:
         status="healthy",
         model_version=predictor.model_version,
         threshold=predictor.threshold,
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
     )
 
 

@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import os
 import subprocess
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Generator, Optional
 
 import mlflow
 from mlflow.tracking import MlflowClient
@@ -83,8 +83,8 @@ def get_or_create_experiment(name: str) -> str:
 @contextmanager
 def mlflow_run(
     run_name: str,
-    experiment_name: Optional[str] = None,
-    tags: Optional[dict[str, str]] = None,
+    experiment_name: str | None = None,
+    tags: dict[str, str] | None = None,
     nested: bool = False,
 ) -> Generator[mlflow.ActiveRun, None, None]:
     """Context manager for MLflow runs with automatic tagging.

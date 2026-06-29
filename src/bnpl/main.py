@@ -100,7 +100,7 @@ class BNPLRunner(LoggerMixin):
         pipeline = PreprocessingPipeline(config_path)
         result = pipeline.transform(raw)
 
-        print(f"\nPreprocessing result:")
+        print("\nPreprocessing result:")
         print(f"  Shape: {result.shape}")
         print(f"  Columns ({len(result.columns)}):")
         for i, col in enumerate(result.columns, 1):
@@ -288,9 +288,10 @@ class BNPLRunner(LoggerMixin):
         Returns:
             None. Prints test set metrics.
         """
-        import pandas as pd
-        from bnpl.models.evaluate import ModelEvaluator
         import joblib
+        import pandas as pd
+
+        from bnpl.models.evaluate import ModelEvaluator
 
         model_path = self._get_model_path()
         model = joblib.load(model_path)
@@ -419,6 +420,7 @@ class BNPLRunner(LoggerMixin):
             None. Prints best parameters.
         """
         import pandas as pd
+
         from bnpl.models.tune import HyperparameterTuner
 
         train_path = self._get_train_data_path()
@@ -449,6 +451,7 @@ class BNPLRunner(LoggerMixin):
         """
         import joblib
         import pandas as pd
+
         from bnpl.models.explain import ModelExplainer
 
         model = joblib.load(self._get_model_path())
@@ -475,8 +478,8 @@ class BNPLRunner(LoggerMixin):
         Returns:
             None. Prints formatted summary to stdout.
         """
-        from bnpl.serving.ab_router import ABRouter
         from bnpl.models.predictor import Predictor
+        from bnpl.serving.ab_router import ABRouter
 
         predictor = Predictor(
             self._get_model_path(), self._get_config_path(), self._get_threshold(),
@@ -516,9 +519,9 @@ class BNPLRunner(LoggerMixin):
         if not path.exists():
             raise FileNotFoundError(f"Challenger model not found: {path}")
         print(f"Challenger model verified at: {path}")
-        print(f"To activate A/B testing, set environment variable:")
+        print("To activate A/B testing, set environment variable:")
         print(f"  CHALLENGER_MODEL_PATH={path}")
-        print(f"Then restart the API server.")
+        print("Then restart the API server.")
 
     def run_health_check(self, url: str) -> None:
         """Check if the API is running and healthy.
@@ -724,7 +727,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     # ab-analyze
     p_ab_analyze = subparsers.add_parser("ab-analyze", help="Analyze A/B test results")
-    p_ab_analyze.add_argument("--min-requests", type=int, default=1000, help="Min requests for analysis")
+    p_ab_analyze.add_argument(
+        "--min-requests", type=int, default=1000, help="Min requests for analysis",
+    )
 
     # ab-load-challenger
     p_ab_load = subparsers.add_parser("ab-load-challenger", help="Register challenger model")

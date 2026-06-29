@@ -10,7 +10,6 @@ import json
 from pathlib import Path
 
 import joblib
-import numpy as np
 import pandas as pd
 
 from bnpl.logger import LoggerMixin, log_execution

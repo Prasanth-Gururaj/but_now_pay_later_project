@@ -8,7 +8,7 @@ MLflow registry entry.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import joblib
@@ -158,7 +158,7 @@ class TrainingPipeline(LoggerMixin):
                 k: v for k, v in metrics.items() if isinstance(v, (int, float))
             },
             "scale_pos_weight": scale_pos_weight,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         out = Path("models") / "champion_metadata.json"

@@ -8,7 +8,6 @@ to detect business-level degradation.
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
 
 from bnpl.logger import LoggerMixin, log_execution
 

@@ -146,7 +146,7 @@ class DataPipeline(LoggerMixin):
             for col in nominal_cols
         }
 
-        sub_grades = [f"{l}{n}" for l in "ABCDEFG" for n in range(1, 6)]
+        sub_grades = [f"{g}{n}" for g in "ABCDEFG" for n in range(1, 6)]
         sub_grade_map = {sg: i for i, sg in enumerate(sub_grades)}
 
         final_cols = self._build_final_columns(train_categories, impute_values)
@@ -252,7 +252,8 @@ class DataPipeline(LoggerMixin):
             result = pipeline.transform_batch(split_df)
             out_path = processed_dir / f"{name}.parquet"
             result.to_parquet(out_path, index=False)
-            feature_count = len([c for c in result.columns if c not in ("default", "issue_d", "issue_year")])
+            non_feature = ("default", "issue_d", "issue_year")
+            feature_count = len([c for c in result.columns if c not in non_feature])
             final_shapes[name] = [len(result), feature_count]
             self.logger.info("Saved %s: %s", name, result.shape)
 

@@ -8,7 +8,6 @@ import mlflow
 import pytest
 
 from bnpl.tracking.mlflow_utils import configure_tracking, get_or_create_experiment, mlflow_run
-from config.settings import reset_settings
 
 os.environ["MLFLOW_ALLOW_FILE_STORE"] = "true"
 
@@ -65,8 +64,8 @@ class TestMlflowRun:
 
     def test_failure_sets_failed_tag(self, mlflow_tmp: str) -> None:
         run_id = None
-        with pytest.raises(RuntimeError, match="deliberate"):
-            with mlflow_run("fail-run", experiment_name="test-exp") as run:
+        with pytest.raises(RuntimeError, match="deliberate"), \
+             mlflow_run("fail-run", experiment_name="test-exp") as run:
                 run_id = run.info.run_id
                 raise RuntimeError("deliberate failure")
 

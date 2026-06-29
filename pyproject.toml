@@ -68,6 +68,7 @@ src = ["src"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
+ignore = ["N803", "N806"]
 
 [tool.black]
 target-version = ["py312"]

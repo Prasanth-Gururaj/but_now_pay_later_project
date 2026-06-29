@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import logging
 import logging.config
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
@@ -23,7 +23,7 @@ class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         log_entry: dict[str, object] = {
             "timestamp": datetime.fromtimestamp(
-                record.created, tz=timezone.utc
+                record.created, tz=UTC
             ).isoformat(),
             "level": record.levelname,
             "logger": record.name,
@@ -70,7 +70,7 @@ def setup_logging(json_output: bool = False) -> None:
     """
     yaml_path = CONFIG_DIR / "logging.yaml"
     if yaml_path.exists():
-        with open(yaml_path, "r", encoding="utf-8") as f:
+        with open(yaml_path, encoding="utf-8") as f:
             config_dict = yaml.safe_load(f)
     else:
         logging.basicConfig(level=logging.INFO)

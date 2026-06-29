@@ -7,7 +7,7 @@ input validation, prediction logging, and batch support.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from bnpl.logger import LoggerMixin, log_execution
@@ -106,7 +106,7 @@ class InferenceEngine(LoggerMixin):
         try:
             self._log_path.parent.mkdir(parents=True, exist_ok=True)
             entry = {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "input": raw_input,
                 "result": result,
             }

@@ -7,7 +7,7 @@ so you can tune by editing the YAML and re-running the pipeline.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -58,7 +58,7 @@ class ModelTrainer(LoggerMixin):
         self._params = self._load_model_params()
         self._scale_pos_weight: float | None = None
         self._run_ids: dict[str, str] = {}
-        self._run_tag = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        self._run_tag = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 
         self.logger.info(
             "ModelTrainer loaded params for: %s (run_tag=%s)",

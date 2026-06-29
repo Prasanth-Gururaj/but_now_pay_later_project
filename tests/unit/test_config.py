@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import pytest
-
-from config.settings import Settings, get_settings, reset_settings
+from config.settings import Settings, get_settings
 
 
 class TestDevSettings:

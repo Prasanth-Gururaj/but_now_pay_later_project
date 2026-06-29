@@ -7,7 +7,7 @@ loan application data.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import joblib
@@ -134,5 +134,5 @@ class Predictor(LoggerMixin):
             "default_probability": round(probability, 4),
             "threshold_used": self._threshold,
             "model_version": self.MODEL_VERSION,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }

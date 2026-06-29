@@ -32,7 +32,10 @@ class DriftDetector(LoggerMixin):
 
     Usage::
 
-        detector = DriftDetector(reference_df=train_features, config_path="reports/data_prep_config.json")
+        detector = DriftDetector(
+            reference_df=train_features,
+            config_path="reports/data_prep_config.json",
+        )
         result = detector.run_drift(train_features, current_features, "2018_jan")
 
     Depends on:
@@ -141,9 +144,8 @@ class DriftDetector(LoggerMixin):
 
         dup_result = self._check_duplicate_rate(current_df)
         details["duplicates"] = dup_result
-        if dup_result["is_excessive"]:
-            if severity != "critical":
-                severity = "warning"
+        if dup_result["is_excessive"] and severity != "critical":
+            severity = "warning"
 
         failure_type = "pipeline_bug" if affected else "clean"
         return {
@@ -428,10 +430,7 @@ class DriftDetector(LoggerMixin):
             if abs(approval_rate - baseline) > deviation_pct:
                 return True
 
-        if quality_result.get("severity") == "critical":
-            return True
-
-        return False
+        return quality_result.get("severity") == "critical"
 
     def _save_report(self, report: object, window_label: str) -> Path:
         """Save the Evidently HTML report to the drift reports directory.

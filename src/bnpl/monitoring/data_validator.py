@@ -92,9 +92,8 @@ class ProductionDataValidator(LoggerMixin):
 
         dups = self._check_duplicate_rate(current_df)
         details["duplicates"] = dups
-        if dups["is_excessive"]:
-            if severity != "critical":
-                severity = "warning"
+        if dups["is_excessive"] and severity != "critical":
+            severity = "warning"
 
         failure_type = "pipeline_bug" if affected else "clean"
         return {
