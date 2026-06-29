@@ -34,7 +34,14 @@ METADATA_PATH = MODELS_DIR / "champion_metadata.json"
 st.sidebar.title("💳 BNPL Prediction")
 page = st.sidebar.radio(
     "Navigate",
-    ["🔮 Predict", "📊 Model Performance", "🔍 Feature Importance", "ℹ️ About"],
+    [
+        "🔮 Predict",
+        "📊 Model Performance",
+        "🔍 Feature Importance",
+        "📉 Drift Monitoring",
+        "🧪 A/B Testing",
+        "ℹ️ About",
+    ],
 )
 
 
@@ -292,6 +299,183 @@ def page_features():
 
 
 # ---------------------------------------------------------------------------
+# Page: Drift Monitoring
+# ---------------------------------------------------------------------------
+def page_drift():
+    """Display drift monitoring results."""
+    st.header("📉 Drift Monitoring")
+
+    log_path = REPORTS_DIR / "monitoring_log.json"
+    if not log_path.exists():
+        st.info("No monitoring data yet. Run `python scripts/run_monitoring.py` to generate.")
+        return
+
+    with open(log_path, encoding="utf-8") as f:
+        entries = json.load(f)
+
+    if not entries:
+        st.info("Monitoring log is empty.")
+        return
+
+    latest = entries[-1]
+    drift_report = latest.get("drift_report", {})
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Window", drift_report.get("window", "N/A"))
+    col2.metric("Drift Detected", "Yes" if drift_report.get("drift_detected") else "No")
+    col3.metric("Drift Score", f"{drift_report.get('drift_score', 0):.4f}")
+    col4.metric(
+        "Approval Rate",
+        f"{latest.get('approval_rate', 0):.2%}",
+        delta=(
+            f"{latest.get('approval_rate', 0) - latest.get('baseline_approval_rate', 0):.2%}"
+            " vs baseline"
+        ),
+    )
+
+    if drift_report.get("drift_detected"):
+        st.warning(f"**Action**: {drift_report.get('recommended_action', 'N/A')}")
+        drifted = drift_report.get("drifted_features", [])
+        if drifted:
+            st.markdown("**Drifted Features:**")
+            for feat in drifted:
+                st.markdown(f"- `{feat}`")
+    else:
+        st.success("No significant drift detected in the latest window.")
+
+    st.divider()
+    st.subheader("Monitoring History")
+
+    import pandas as pd
+
+    rows = []
+    for e in entries:
+        dr = e.get("drift_report", {})
+        rows.append(
+            {
+                "Window": dr.get("window", ""),
+                "Drift Detected": dr.get("drift_detected", False),
+                "Failure Type": dr.get("failure_type", ""),
+                "Drifted Features": ", ".join(dr.get("drifted_features", [])) or "None",
+                "Drift Score": dr.get("drift_score", 0),
+                "Approval Rate": f"{e.get('approval_rate', 0):.2%}",
+                "Baseline": f"{e.get('baseline_approval_rate', 0):.2%}",
+                "Retrain?": dr.get("should_retrain", False),
+                "Timestamp": e.get("timestamp", "")[:19],
+            }
+        )
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+
+# ---------------------------------------------------------------------------
+# Page: A/B Testing
+# ---------------------------------------------------------------------------
+def page_ab_testing():
+    """Display A/B test results and statistical analysis."""
+    st.header("🧪 A/B Testing: Champion vs Challenger")
+
+    results_path = REPORTS_DIR / "ab_test_results.json"
+    if not results_path.exists():
+        st.info("No A/B test results yet. Run `python scripts/run_ab_test.py` to generate.")
+        return
+
+    with open(results_path, encoding="utf-8") as f:
+        results = json.load(f)
+
+    import pandas as pd
+
+    rec = results.get("recommendation", "")
+    reason = results.get("reason", "")
+    if rec == "promote_challenger":
+        st.success(f"**Promote Challenger** — {reason}")
+    else:
+        st.error(f"**Keep Champion** — {reason}")
+
+    st.divider()
+
+    st.subheader("Model Comparison")
+    auc = results.get("auc", {})
+    approval = results.get("approval_rates", {})
+    avg_prob = results.get("avg_default_probability", {})
+    sizes = results.get("sample_sizes", {})
+
+    comparison_data = {
+        "Metric": ["AUC", "Approval Rate", "Avg Default Prob", "Sample Size"],
+        "Champion (XGBoost)": [
+            f"{auc.get('champion', 0):.4f}",
+            f"{approval.get('champion', 0):.2%}",
+            f"{avg_prob.get('champion', 0):.4f}",
+            f"{sizes.get('champion', 0):,}",
+        ],
+        "Challenger (LightGBM)": [
+            f"{auc.get('challenger', 0):.4f}",
+            f"{approval.get('challenger', 0):.2%}",
+            f"{avg_prob.get('challenger', 0):.4f}",
+            f"{sizes.get('challenger', 0):,}",
+        ],
+    }
+    st.dataframe(
+        pd.DataFrame(comparison_data), use_container_width=True, hide_index=True
+    )
+
+    st.divider()
+
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.subheader("Approval Rate Comparison")
+        img = REPORTS_DIR / "ab_approval_rate_comparison.png"
+        if img.exists():
+            st.image(str(img), use_container_width=True)
+
+    with col_b:
+        st.subheader("Default Probability Distribution")
+        img = REPORTS_DIR / "ab_default_prob_distribution.png"
+        if img.exists():
+            st.image(str(img), use_container_width=True)
+
+    st.subheader("ROC Curve Comparison")
+    img = REPORTS_DIR / "ab_roc_comparison.png"
+    if img.exists():
+        st.image(str(img), use_container_width=True)
+
+    st.divider()
+    st.subheader("Statistical Tests")
+
+    z = results.get("z_test", {})
+    chi = results.get("chi_square_test", {})
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Two-Proportion Z-Test** (approval rates)")
+        st.markdown(f"""
+        | Statistic | Value |
+        |-----------|-------|
+        | Z-statistic | {z.get('z_statistic', 0):.4f} |
+        | p-value | {z.get('p_value', 0):.6f} |
+        | Significant (alpha=0.05) | {'Yes' if z.get('significant_at_0.05') else 'No'} |
+        """)
+
+    with col2:
+        st.markdown("**Chi-Square Test** (approve/deny distributions)")
+        st.markdown(f"""
+        | Statistic | Value |
+        |-----------|-------|
+        | Chi-square | {chi.get('chi2_statistic', 0):.4f} |
+        | p-value | {chi.get('p_value', 0):.6f} |
+        | Degrees of freedom | {chi.get('degrees_of_freedom', 0)} |
+        | Significant (alpha=0.05) | {'Yes' if chi.get('significant_at_0.05') else 'No'} |
+        """)
+
+    st.divider()
+    st.caption(
+        f"Test date: {results.get('test_date', 'N/A')[:19]} | "
+        f"Threshold: {results.get('threshold', 'N/A')} | "
+        f"Traffic split: {results.get('traffic_split', {}).get('champion', 0):.0%} champion / "
+        f"{results.get('traffic_split', {}).get('challenger', 0):.0%} challenger"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Page: About
 # ---------------------------------------------------------------------------
 def page_about():
@@ -366,5 +550,9 @@ elif page == "📊 Model Performance":
     page_performance()
 elif page == "🔍 Feature Importance":
     page_features()
+elif page == "📉 Drift Monitoring":
+    page_drift()
+elif page == "🧪 A/B Testing":
+    page_ab_testing()
 elif page == "ℹ️ About":
     page_about()

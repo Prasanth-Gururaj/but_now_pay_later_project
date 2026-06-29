@@ -60,6 +60,18 @@ jobs:
           cp reports/model_comparison_roc.png staging/reports/
           cp reports/threshold_selection.png  staging/reports/
 
+          # A/B test artifacts
+          cp reports/ab_test_results.json            staging/reports/
+          cp reports/ab_approval_rate_comparison.png  staging/reports/
+          cp reports/ab_default_prob_distribution.png staging/reports/
+          cp reports/ab_roc_comparison.png            staging/reports/
+
+          # Drift monitoring
+          cp reports/monitoring_log.json staging/reports/
+
+          # Challenger metadata
+          cp models/challenger_metadata.json staging/models/
+
           # Renamed files
           cp hf_requirements.txt staging/requirements.txt
           cp hf_README.md        staging/README.md

@@ -1,0 +1,40 @@
+{
+  "test_date": "2026-06-29T20:06:49.541413+00:00",
+  "test_set": "2017 data, 169300 rows",
+  "champion_model": "xgboost",
+  "challenger_model": "lightgbm",
+  "threshold": 0.47,
+  "traffic_split": {
+    "champion": 0.7,
+    "challenger": 0.30000000000000004
+  },
+  "sample_sizes": {
+    "champion": 118408,
+    "challenger": 50892
+  },
+  "approval_rates": {
+    "champion": 0.554,
+    "challenger": 1.0
+  },
+  "avg_default_probability": {
+    "champion": 0.439,
+    "challenger": 0.2792
+  },
+  "auc": {
+    "champion": 0.7046,
+    "challenger": 0.6919
+  },
+  "z_test": {
+    "z_statistic": -181.6129,
+    "p_value": 0.0,
+    "significant_at_0.05": true
+  },
+  "chi_square_test": {
+    "chi2_statistic": 32981.1528,
+    "p_value": 0.0,
+    "degrees_of_freedom": 1,
+    "significant_at_0.05": true
+  },
+  "recommendation": "keep_champion",
+  "reason": "Champion XGBoost (AUC=0.7046) outperforms challenger LightGBM (AUC=0.6919). Approval rates: champion=0.5540, challenger=1.0000."
+}
