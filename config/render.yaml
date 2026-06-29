@@ -1,0 +1,13 @@
+data:
+  sample_fraction: 1.0
+
+tracking:
+  backend: "local"
+  tracking_uri: "mlruns"
+
+logging:
+  level: "WARNING"
+  json_output: true
+
+serving:
+  workers: 1

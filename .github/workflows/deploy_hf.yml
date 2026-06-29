@@ -1,0 +1,82 @@
+name: Deploy to Hugging Face Space
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "dashboard/**"
+      - "src/bnpl/**"
+      - "models/champion_xgboost.pkl"
+      - "models/champion_metadata.json"
+      - "reports/data_prep_config.json"
+      - "reports/*.png"
+      - "hf_requirements.txt"
+      - "hf_README.md"
+      - "Dockerfile"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stage files for HF Space
+        run: |
+          mkdir -p staging/dashboard
+          mkdir -p staging/src/bnpl/models
+          mkdir -p staging/src/bnpl/features
+          mkdir -p staging/src/bnpl/logger
+          mkdir -p staging/models
+          mkdir -p staging/reports
+
+          # Dashboard
+          cp dashboard/app.py staging/dashboard/
+
+          # Source — package inits
+          cp src/bnpl/__init__.py        staging/src/bnpl/
+          cp src/bnpl/models/__init__.py  staging/src/bnpl/models/
+          cp src/bnpl/features/__init__.py staging/src/bnpl/features/
+
+          # Source — runtime modules
+          cp src/bnpl/models/predictor.py   staging/src/bnpl/models/
+          cp src/bnpl/features/pipeline.py  staging/src/bnpl/features/
+          cp src/bnpl/features/encoder.py   staging/src/bnpl/features/
+          cp src/bnpl/features/imputer.py   staging/src/bnpl/features/
+
+          # Source — logger (all files)
+          cp src/bnpl/logger/__init__.py      staging/src/bnpl/logger/
+          cp src/bnpl/logger/custom_logger.py staging/src/bnpl/logger/
+          cp src/bnpl/logger/decorators.py    staging/src/bnpl/logger/
+          cp src/bnpl/logger/logger_config.py staging/src/bnpl/logger/
+
+          # Model artifacts
+          cp models/champion_xgboost.pkl    staging/models/
+          cp models/champion_metadata.json  staging/models/
+
+          # Reports — config + plots
+          cp reports/data_prep_config.json   staging/reports/
+          cp reports/calibration_plot.png    staging/reports/
+          cp reports/shap_summary.png        staging/reports/
+          cp reports/model_comparison_roc.png staging/reports/
+          cp reports/threshold_selection.png  staging/reports/
+
+          # Renamed files
+          cp hf_requirements.txt staging/requirements.txt
+          cp hf_README.md        staging/README.md
+
+          # Dockerfile
+          cp Dockerfile staging/Dockerfile
+
+      - name: Push to Hugging Face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          cd staging
+          git init
+          git add -A
+          git config user.email "prasanth4254@gmail.com"
+          git config user.name "Prasanth Gururaj"
+          git commit -m "Deploy from ${{ github.repository }}@${{ github.sha }}"
+          git push --force https://prasanthprg:$HF_TOKEN@huggingface.co/spaces/prasanthprg/bnpl-default-prediction main

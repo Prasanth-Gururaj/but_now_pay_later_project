@@ -1,12 +1,58 @@
-# TODO: Implement scheduled daily drift/monitoring job
-name: Monitoring
+name: Daily Monitoring
 on:
   schedule:
-    - cron: "0 6 * * *"
+    - cron: "0 8 * * *"
   workflow_dispatch:
 jobs:
   monitor:
     runs-on: ubuntu-latest
+    env:
+      DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+      DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+      DAGSHUB_REPO: ${{ secrets.DAGSHUB_REPO }}
     steps:
       - uses: actions/checkout@v4
-      # TODO: Add drift detection and alerting steps
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install uv and dependencies
+        run: |
+          pip install uv
+          uv venv --python 3.12 npl
+          source npl/bin/activate
+          uv pip install -e ".[dev,test]"
+      - name: Run monitoring
+        id: monitor
+        run: |
+          source npl/bin/activate
+          python -m bnpl.main monitor --window 2018 | tee monitor_output.txt
+          if grep -q '"should_retrain": true' monitor_output.txt; then
+            echo "RETRAIN_NEEDED=true" >> $GITHUB_OUTPUT
+          else
+            echo "RETRAIN_NEEDED=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Trigger retraining if needed
+        if: steps.monitor.outputs.RETRAIN_NEEDED == 'true'
+        run: |
+          gh workflow run retrain.yml \
+            -f window=2018 \
+            -f reason=drift_detected
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload drift reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: drift-reports
+          path: reports/drift_reports/
+      - name: Create issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Monitoring pipeline failed',
+              body: 'Daily monitoring failed. Check the workflow logs.'
+            })

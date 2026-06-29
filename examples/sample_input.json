@@ -1,0 +1,19 @@
+{
+  "dti": 18.5,
+  "fico_range_low": 690,
+  "revol_util": 45.2,
+  "annual_inc": 68000.0,
+  "loan_amnt": 10000.0,
+  "int_rate": 12.5,
+  "sub_grade": "B3",
+  "term": "36 months",
+  "emp_length": "5 years",
+  "home_ownership": "RENT",
+  "verification_status": "Verified",
+  "purpose": "debt_consolidation",
+  "delinq_2yrs": 0.0,
+  "inq_last_6mths": 1.0,
+  "open_acc": 8.0,
+  "pub_rec": 0.0,
+  "revol_bal": 12000.0
+}

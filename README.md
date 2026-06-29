@@ -39,9 +39,9 @@ A production-grade ML system that predicts loan defaults for Buy Now Pay Later (
 ## Quick Start
  
 ```bash
-# 1. Create virtual environment and install
-uv venv .venv
-uv pip install -e ".[dev,test]"
+# 1. Create virtual environment (Python 3.12) and install
+uv venv --python 3.12 npl
+uv pip install --python npl/Scripts/python -e ".[dev,test]"
  
 # 2. Copy and configure environment
 cp .env.example .env
@@ -197,22 +197,57 @@ Principle enforced throughout: **every transformation parameter (median, encodin
 **10. Saved outputs:**
 - `data/processed/train.parquet`, `val.parquet`, `test.parquet`
 - `reports/data_prep_config.json` — full reproducibility record: every imputation value, encoding map, outlier cap, and split boundary, so any transformation can be explained or re-applied without relying on memory.
-### 🔜 Phase 4 — Model Training (`04_model_training.ipynb`) — Next Up
- 
-Planned scope:
-1. Baseline: Logistic Regression (requires feature scaling — XGBoost does not).
-2. XGBoost with `scale_pos_weight` from Phase 3.
-3. LightGBM as a comparison point (per BNPL literature reviewed in Phase 0).
-4. MLflow experiment tracking (via DagsHub) for every run — params, metrics, artifacts.
-5. Threshold selection based on **business cost asymmetry**, not F1-maximization (approving a defaulter costs materially more than rejecting a good applicant).
-6. SHAP values for explainability — required given how much weight `sub_grade` carries (Phase 2 finding).
+
+### ✅ Phase 4 — Model Training & Evaluation (`04_model_training.ipynb`)
+
+- Trained three models: Logistic Regression (AUC 0.707), XGBoost (AUC **0.714**, champion), LightGBM (AUC 0.705).
+- All runs logged to DagsHub MLflow with parameters, metrics, and model artifacts.
+- Threshold selected via business cost optimization: **0.47** (minimum cost with >=55% approval rate).
+- SHAP analysis confirmed `sub_grade` dominates at ~70% of feature importance.
+- Champion model registered in MLflow model registry on DagsHub.
+
 ---
- 
+
+## Model Performance
+
+| Metric | Value |
+|--------|-------|
+| **Champion model** | XGBoost |
+| **Training period** | 2013-2015 (733,451 loans, 18.81% default rate) |
+| **Validation period** | 2016 (293,095 loans, 23.28% default rate) |
+| **Test period** | 2017 (169,300 loans, 23.12% default rate) |
+| **Validation AUC** | 0.7141 |
+| **Decision threshold** | 0.47 |
+| **Threshold method** | Minimum total business cost with 55% minimum approval rate constraint |
+| **Cost assumptions** | Approving a defaulter: $300 loss. Rejecting a good applicant: $45 lost revenue |
+
+> **Note:** 2016 has the highest default rate in the dataset at 23.28%, making this a genuinely stress-tested validation set.
+
+---
+
+## 60-Second Interview Answer
+
+I built a BNPL default prediction system that addresses three operational problems most ML projects ignore. First, the model trains on 2013-2015 data at 18.81% default rate and validates on 2016 which had a 23.28% default rate, the highest in the dataset, making the validation genuinely stress-tested rather than optimistically easy. Second, I chose threshold 0.47 using business cost optimization rather than F1 maximization, balancing a minimum 55% approval rate against default loss costs of 300 dollars per bad loan approved. Third, I distinguish real population drift from broken data pipelines before triggering any retraining, because those two situations need completely different responses. The system has a 15-command CLI, A/B testing infrastructure for safe model updates using a 90/10 champion challenger split with counterfactual logging, and CI/CD that runs daily monitoring and deploys automatically when a better model is confirmed.
+
+---
+
+## Known Limitations
+
+**Selection bias:** Model trained on accepted loans only. LendingClub's own underwriting filtered the applicant pool before this data was generated. The model learns default patterns only within an already-approved population, not the full applicant pool. This is the classic reject inference problem.
+
+**Calibration:** The model overestimates default probability. The calibration curve sits below the diagonal throughout, meaning predicted probabilities are systematically higher than actual default rates. Platt scaling calibration has not been applied.
+
+**Sub_grade dominance:** Approximately 70 percent of feature importance comes from LendingClub's own sub_grade field, which encodes their internal risk assessment. The model primarily refines an existing expert system rather than learning entirely fresh signal from raw financial features.
+
+**Label delay:** BNPL loan outcomes take 6 weeks to materialize. Monitoring uses proxy signals such as early delinquency indicators rather than final default labels. This introduces uncertainty into drift detection timing.
+
+---
+
 ## Notebooks
- 
+
 | Notebook | Status | Purpose |
 |---|---|---|
 | `01_data_exploration.ipynb` | ✅ Complete | Class imbalance, time axis, leakage proof, missing values, distributions |
-| `02_feature_selection.ipynb` | ✅ Complete | Statistical feature selection on training period only — 151 → 17 features |
-| `03_data_preparation.ipynb` | ✅ Complete | Temporal split, imputation, encoding (17→47 cols), outlier capping, save processed data |
-| `04_model_training.ipynb` | 🔜 Next | Baseline vs XGBoost vs LightGBM, MLflow tracking, cost-based threshold selection |
+| `02_feature_selection.ipynb` | ✅ Complete | Statistical feature selection on training period only — 151 to 17 features |
+| `03_data_preparation.ipynb` | ✅ Complete | Temporal split, imputation, encoding (17 to 47 cols), outlier capping, save processed data |
+| `04_model_training.ipynb` | ✅ Complete | Baseline vs XGBoost vs LightGBM, MLflow tracking, cost-based threshold selection |

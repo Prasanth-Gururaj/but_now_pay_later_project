@@ -1,10 +1,75 @@
-# TODO: Implement drift-triggered retraining pipeline
-name: Retrain
+name: Retrain and Deploy
 on:
   workflow_dispatch:
+    inputs:
+      window:
+        description: Data window that triggered retrain
+        required: true
+        default: "2018"
+      reason:
+        description: Reason for retraining
+        required: true
+        default: "drift_detected"
 jobs:
   retrain:
     runs-on: ubuntu-latest
+    env:
+      DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+      DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+      DAGSHUB_REPO: ${{ secrets.DAGSHUB_REPO }}
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
     steps:
       - uses: actions/checkout@v4
-      # TODO: Add retraining pipeline steps
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install uv and dependencies
+        run: |
+          pip install uv
+          uv venv --python 3.12 npl
+          source npl/bin/activate
+          uv pip install -e ".[dev,test]"
+      - name: Run retraining
+        id: retrain
+        run: |
+          source npl/bin/activate
+          python -m bnpl.main retrain \
+            --window ${{ inputs.window }} | tee retrain_output.txt
+          if grep -q '"decision": "promoted"' retrain_output.txt; then
+            echo "CHAMPION_UPDATED=true" >> $GITHUB_OUTPUT
+          else
+            echo "CHAMPION_UPDATED=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Commit updated model
+        if: steps.retrain.outputs.CHAMPION_UPDATED == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add models/champion_xgboost.pkl models/champion_metadata.json
+          git commit -m "chore: update champion model after drift-triggered retrain
+
+          Window: ${{ inputs.window }}
+          Reason: ${{ inputs.reason }}"
+          git push
+      - name: Deploy to Render if champion updated
+        if: steps.retrain.outputs.CHAMPION_UPDATED == 'true'
+        run: |
+          curl -X POST $RENDER_DEPLOY_HOOK
+          echo "Deployment triggered on Render"
+      - name: Log result to summary
+        run: |
+          if [ "${{ steps.retrain.outputs.CHAMPION_UPDATED }}" == "true" ]; then
+            echo "New champion deployed to production" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Champion retained, no deployment" >> $GITHUB_STEP_SUMMARY
+          fi
+      - name: Upload model artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-artifacts
+          path: models/
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: reports/

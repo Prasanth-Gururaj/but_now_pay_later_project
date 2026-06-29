@@ -1,130 +1,201 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
-from typing import Optional
-import joblib
-import json
-import pandas as pd
-import numpy as np
+"""FastAPI serving layer for BNPL default prediction.
+
+Exposes endpoints:
+    - GET  /          : Service information and documentation links.
+    - GET  /health    : Health check with model version and threshold.
+    - POST /predict   : Accepts a loan application, returns APPROVE/DENY.
+    - GET  /ab-summary: A/B test summary (if challenger loaded).
+
+The champion XGBoost model is loaded once at startup via the FastAPI
+lifespan context manager. If CHALLENGER_MODEL_PATH env var is set,
+an A/B router handles traffic splitting.
+
+Start the server::
+
+    uvicorn src.bnpl.serving.api:app --reload --port 8000
+"""
+
+from __future__ import annotations
+
 import os
-from datetime import datetime
+import uuid
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from typing import AsyncGenerator
+
+from fastapi import FastAPI, HTTPException
+
+from bnpl.serving.middleware import RateLimitMiddleware, RequestLoggingMiddleware
+from bnpl.serving.schemas import (
+    HealthResponse,
+    LoanApplication,
+    PredictionResponse,
+)
+
+
+_MODEL_PATH = os.getenv("MODEL_PATH", "models/champion_xgboost.pkl")
+_CONFIG_PATH = os.getenv("CONFIG_PATH", "reports/data_prep_config.json")
+_THRESHOLD = float(os.getenv("DECISION_THRESHOLD", "0.45"))
+_CHALLENGER_PATH = os.getenv("CHALLENGER_MODEL_PATH", "")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Load model at startup with graceful degradation.
+
+    If MODEL_PATH does not exist, the service starts in degraded
+    mode where /health returns status=degraded and /predict returns 503.
+    This allows Render deployments to start even before model files
+    are present.
+    """
+    from bnpl.logger import get_logger
+
+    logger = get_logger("bnpl.serving.api")
+
+    app.state.degraded = False
+    app.state.predictor = None
+    app.state.ab_router = None
+
+    try:
+        from bnpl.models.predictor import Predictor
+
+        predictor = Predictor(
+            model_path=_MODEL_PATH,
+            config_path=_CONFIG_PATH,
+            threshold=_THRESHOLD,
+        )
+        app.state.predictor = predictor
+
+        from bnpl.serving.ab_router import ABRouter
+
+        router = ABRouter(predictor)
+
+        if _CHALLENGER_PATH and os.path.exists(_CHALLENGER_PATH):
+            router.load_challenger(_CHALLENGER_PATH, _CONFIG_PATH, _THRESHOLD)
+            logger.info("Challenger loaded for A/B testing: %s", _CHALLENGER_PATH)
+
+        app.state.ab_router = router
+
+    except FileNotFoundError as exc:
+        logger.warning("Model not found at startup: %s", exc)
+        app.state.degraded = True
+    except Exception as exc:
+        logger.warning("Model loading failed: %s", exc)
+        app.state.degraded = True
+
+    yield
+
 
 app = FastAPI(
     title="BNPL Default Prediction API",
-    description="Predicts default probability for BNPL loan applications",
-    version="1.0.0"
+    description=(
+        "Predicts default probability for BNPL loan applications. "
+        "Returns an APPROVE or DENY decision based on the champion "
+        "XGBoost model and configurable business threshold."
+    ),
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
-MODEL_PATH  = os.getenv("MODEL_PATH",  "models/champion_xgboost.pkl")
-CONFIG_PATH = os.getenv("CONFIG_PATH", "reports/data_prep_config.json")
-THRESHOLD   = float(os.getenv("DECISION_THRESHOLD", "0.45"))
-
-model  = joblib.load(MODEL_PATH)
-with open(CONFIG_PATH) as f:
-    config = json.load(f)
-
-FEATURE_COLS     = config["final_model_columns"]
-IMPUTE_VALUES    = config["imputation"]["values"]
-OUTLIER_CAPS     = config["outlier_handling"]["caps"]
-TRAIN_CATEGORIES = config["encoding"]["nominal_categories_from_train"]
-SUB_GRADE_MAP    = config["encoding"]["sub_grade"]["mapping"]
-
-EMP_LENGTH_MAP = {
-    "< 1 year": 0, "1 year": 1, "2 years": 2, "3 years": 3, "4 years": 4,
-    "5 years": 5, "6 years": 6, "7 years": 7, "8 years": 8, "9 years": 9,
-    "10+ years": 10
-}
+app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(RateLimitMiddleware, max_requests=100, window_seconds=60)
 
 
-class LoanApplication(BaseModel):
-    dti:                 float = Field(..., ge=0,    description="Debt to income ratio")
-    fico_range_low:      float = Field(..., ge=300,  le=850, description="Credit score lower bound")
-    revol_util:          float = Field(..., ge=0,    le=100, description="Revolving utilization percent")
-    annual_inc:          float = Field(..., ge=0,    description="Annual income in dollars")
-    loan_amnt:           float = Field(..., ge=0,    description="Loan amount requested")
-    int_rate:            float = Field(..., ge=0,    description="Interest rate percent")
-    sub_grade:           str   = Field(...,          description="LendingClub sub grade, e.g. B3")
-    term:                str   = Field(...,          description="36 months or 60 months")
-    emp_length:          str   = Field(...,          description="Employment length, e.g. 5 years")
-    home_ownership:      str   = Field(...,          description="RENT, OWN, MORTGAGE or OTHER")
-    verification_status: str   = Field(...,          description="Verified, Source Verified or Not Verified")
-    purpose:             str   = Field(...,          description="Loan purpose, e.g. debt_consolidation")
-    delinq_2yrs:         float = Field(..., ge=0,    description="Delinquencies in last 2 years")
-    inq_last_6mths:      float = Field(..., ge=0,    description="Credit inquiries in last 6 months")
-    open_acc:            float = Field(..., ge=0,    description="Number of open credit lines")
-    pub_rec:             float = Field(..., ge=0,    description="Number of public records")
-    revol_bal:           float = Field(..., ge=0,    description="Current revolving balance")
+@app.get("/", response_model=dict)
+def root() -> dict:
+    """Return basic service information and documentation links.
 
-
-class PredictionResponse(BaseModel):
-    decision:            str
-    default_probability: float
-    threshold_used:      float
-    model_version:       str
-    timestamp:           str
-
-
-def preprocess(raw: dict) -> pd.DataFrame:
-    d = pd.Series(raw).to_frame().T
-
-    d["emp_length_num"] = d["emp_length"].map(EMP_LENGTH_MAP)
-
-    for col, fill_val in IMPUTE_VALUES.items():
-        base = col.replace("_num", "") if col == "emp_length_num" else col
-        src  = base if base in d.columns else col
-        d[col + "_was_missing"] = d[src].isnull().astype(int) if src in d.columns else 0
-        d[col] = d[src].fillna(fill_val) if src in d.columns else fill_val
-
-    d["sub_grade_encoded"] = d["sub_grade"].map(SUB_GRADE_MAP).fillna(17)
-    d["term_num"]          = d["term"].str.extract(r"(\d+)").astype(float)
-
-    for col, cap_val in OUTLIER_CAPS.items():
-        d[col + "_capped"] = d[col].clip(upper=cap_val) if col in d.columns else cap_val
-
-    for col, cats in TRAIN_CATEGORIES.items():
-        for cat in cats:
-            d[f"{col}_{cat}"] = (d[col] == cat).astype(int)
-
-    for col in FEATURE_COLS:
-        if col not in d.columns:
-            d[col] = 0
-
-    return d[FEATURE_COLS]
-
-
-@app.get("/health")
-def health():
+    Returns:
+        dict: Service name, documentation URL, and endpoint paths.
+    """
     return {
-        "status": "healthy",
-        "model_version": "champion_xgboost_v1",
-        "threshold": THRESHOLD,
-        "timestamp": datetime.utcnow().isoformat()
+        "message": "BNPL Default Prediction API",
+        "docs": "/docs",
+        "health": "/health",
+        "predict": "/predict",
+        "ab_summary": "/ab-summary",
     }
 
 
-@app.post("/predict", response_model=PredictionResponse)
-def predict(application: LoanApplication):
-    try:
-        raw         = application.model_dump()
-        features    = preprocess(raw)
-        probability = float(model.predict_proba(features)[0][1])
-        decision    = "DENY" if probability >= THRESHOLD else "APPROVE"
+@app.get("/health", response_model=HealthResponse)
+def health() -> HealthResponse:
+    """Check service health and report model version and threshold.
 
-        return PredictionResponse(
-            decision            = decision,
-            default_probability = round(probability, 4),
-            threshold_used      = THRESHOLD,
-            model_version       = "champion_xgboost_v1",
-            timestamp           = datetime.utcnow().isoformat()
+    Returns:
+        HealthResponse: Current status with model metadata.
+    """
+    if app.state.degraded:
+        return HealthResponse(
+            status="degraded",
+            model_version="none",
+            threshold=_THRESHOLD,
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
+    predictor = app.state.predictor
+    return HealthResponse(
+        status="healthy",
+        model_version=predictor.model_version,
+        threshold=predictor.threshold,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+    )
 
 
-@app.get("/")
-def root():
+@app.post("/predict", response_model=PredictionResponse)
+def predict(application: LoanApplication) -> PredictionResponse:
+    """Score a loan application and return an APPROVE/DENY decision.
+
+    If a challenger model is loaded via CHALLENGER_MODEL_PATH env var,
+    the ABRouter handles traffic splitting. Otherwise, all traffic
+    goes to the champion model.
+
+    Args:
+        application: Validated loan application with 17 fields.
+
+    Returns:
+        PredictionResponse: Decision, probability, and metadata.
+
+    Raises:
+        HTTPException: 503 if model is not available (degraded mode).
+        HTTPException: 500 if prediction fails unexpectedly.
+    """
+    if app.state.degraded or app.state.predictor is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Model not available. Service is degraded. "
+                   "Please check that model file exists at deployment.",
+        )
+
+    try:
+        raw = application.model_dump()
+        router = app.state.ab_router
+
+        if router is not None:
+            request_id = str(uuid.uuid4())
+            result = router.route(raw, request_id)
+        else:
+            result = app.state.predictor.predict(raw)
+
+        return PredictionResponse(**{
+            k: v for k, v in result.items()
+            if k in PredictionResponse.model_fields
+        })
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/ab-summary", response_model=dict)
+def ab_summary() -> dict:
+    """Return A/B test summary statistics.
+
+    Returns:
+        dict: Champion vs challenger comparison metrics.
+              Empty summary if no challenger is loaded or no requests logged.
+    """
+    router = app.state.ab_router
+    if router is not None:
+        return router.get_summary()
     return {
-        "message": "BNPL Default Prediction API",
-        "docs":    "/docs",
-        "health":  "/health",
-        "predict": "/predict"
+        "total_requests": 0, "champion_requests": 0,
+        "challenger_requests": 0, "has_challenger": False,
     }
