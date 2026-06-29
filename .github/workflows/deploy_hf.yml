@@ -3,16 +3,6 @@ name: Deploy to Hugging Face Space
 on:
   push:
     branches: [main]
-    paths:
-      - "dashboard/**"
-      - "src/bnpl/**"
-      - "models/champion_xgboost.pkl"
-      - "models/champion_metadata.json"
-      - "reports/data_prep_config.json"
-      - "reports/*.png"
-      - "hf_requirements.txt"
-      - "hf_README.md"
-      - "Dockerfile"
   workflow_dispatch:
 
 jobs:
