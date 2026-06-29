@@ -3,6 +3,14 @@ name: Deploy to Hugging Face Space
 on:
   push:
     branches: [main]
+    paths:
+      - 'dashboard/**'
+      - 'src/bnpl/**'
+      - 'models/**'
+      - 'reports/**'
+      - 'hf_README.md'
+      - 'hf_requirements.txt'
+      - 'Dockerfile'
   workflow_dispatch:
 
 jobs:
@@ -74,4 +82,19 @@ jobs:
               repo_type='space',
               token=os.environ['HF_TOKEN'],
           )
+          "
+
+      - name: Restart HF Space to trigger rebuild
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python -c "
+          import os
+          from huggingface_hub import HfApi
+          api = HfApi()
+          api.restart_space(
+              repo_id='prasanthprg/bnpl-default-prediction',
+              token=os.environ['HF_TOKEN'],
+          )
+          print('Space restarted — rebuild triggered')
           "

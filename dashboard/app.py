@@ -34,8 +34,7 @@ METADATA_PATH = MODELS_DIR / "champion_metadata.json"
 st.sidebar.title("💳 BNPL Prediction")
 page = st.sidebar.radio(
     "Navigate",
-    ["🔮 Predict", "📊 Model Performance", "🔍 Feature Importance",
-     "📡 Monitoring", "ℹ️ About"],
+    ["🔮 Predict", "📊 Model Performance", "🔍 Feature Importance", "ℹ️ About"],
 )
 
 
@@ -293,57 +292,6 @@ def page_features():
 
 
 # ---------------------------------------------------------------------------
-# Page: Monitoring
-# ---------------------------------------------------------------------------
-def page_monitoring():
-    """Display drift monitoring results."""
-    st.header("📡 Monitoring & Drift Detection")
-
-    log_path = REPORTS_DIR / "monitoring_log.json"
-    if log_path.exists():
-        with open(log_path, encoding="utf-8") as f:
-            entries = json.load(f)
-
-        st.success(f"**{len(entries)}** monitoring runs logged")
-
-        for entry in reversed(entries[-5:]):
-            with st.expander(
-                f"Window: {entry.get('window', 'N/A')} — "
-                f"Retrain: {'⚠️ YES' if entry.get('should_retrain') else '✅ No'}"
-            ):
-                st.json(entry)
-    else:
-        st.info("No monitoring runs yet. Run `python -m bnpl.main monitor --window 2018`")
-
-    st.divider()
-    st.subheader("Retraining History")
-
-    retrain_path = REPORTS_DIR / "retraining_log.json"
-    if retrain_path.exists():
-        with open(retrain_path, encoding="utf-8") as f:
-            entries = json.load(f)
-        for entry in reversed(entries):
-            with st.expander(f"Window: {entry.get('window')} — Decision: {entry.get('decision')}"):
-                st.json(entry)
-    else:
-        st.caption("No retraining runs yet.")
-
-    # Drift reports
-    st.divider()
-    st.subheader("Drift Reports")
-    drift_dir = REPORTS_DIR / "drift_reports"
-    if drift_dir.exists():
-        reports = sorted(drift_dir.glob("*.html"))
-        if reports:
-            for r in reports:
-                st.markdown(f"- [{r.name}]({r})")
-        else:
-            st.caption("No drift reports generated yet.")
-    else:
-        st.caption("No drift reports directory.")
-
-
-# ---------------------------------------------------------------------------
 # Page: About
 # ---------------------------------------------------------------------------
 def page_about():
@@ -418,7 +366,5 @@ elif page == "📊 Model Performance":
     page_performance()
 elif page == "🔍 Feature Importance":
     page_features()
-elif page == "📡 Monitoring":
-    page_monitoring()
 elif page == "ℹ️ About":
     page_about()
