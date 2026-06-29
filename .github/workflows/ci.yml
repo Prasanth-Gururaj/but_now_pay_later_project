@@ -4,32 +4,33 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      MLFLOW_ALLOW_FILE_STORE: "true"
+      APP_ENV: dev
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Install uv
         run: pip install uv
-      - name: Create venv and install
-        run: |
-          uv venv --python 3.12 npl
-          source npl/bin/activate
-          uv pip install -e ".[dev,test]"
+
+      - name: Install dependencies
+        run: uv sync --extra dev --extra test
+
       - name: Run linting
-        run: |
-          source npl/bin/activate
-          ruff check src/ tests/
+        run: uv run ruff check src/ tests/
+
       - name: Run tests
-        run: |
-          source npl/bin/activate
-          pytest tests/ -v --tb=short
-        env:
-          MLFLOW_ALLOW_FILE_STORE: "true"
-          APP_ENV: dev
+        run: uv run pytest tests/ -v --tb=short
+
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()

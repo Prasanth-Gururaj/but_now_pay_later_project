@@ -55,6 +55,12 @@ bnpl = "bnpl.main:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/bnpl"]
 
+[tool.uv]
+constraint-dependencies = [
+    "numba>=0.60",
+    "llvmlite>=0.43",
+]
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100
