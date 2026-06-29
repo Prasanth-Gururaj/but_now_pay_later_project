@@ -326,6 +326,8 @@ class DriftDetector(LoggerMixin):
             dict with ``report`` (Evidently Report object) and
             ``result_dict`` (the report as a Python dict).
         """
+        import warnings
+
         from evidently.metric_preset import DataDriftPreset
         from evidently.report import Report
 
@@ -334,7 +336,9 @@ class DriftDetector(LoggerMixin):
         cur = current_df[shared].copy()
 
         report = Report(metrics=[DataDriftPreset()])
-        report.run(reference_data=ref, current_data=cur)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            report.run(reference_data=ref, current_data=cur)
         return {"report": report, "result_dict": report.as_dict()}
 
     def _classify_drift(self, drift_result: dict, window_label: str) -> dict:
@@ -352,13 +356,15 @@ class DriftDetector(LoggerMixin):
         drifted: list[str] = []
         drift_score = 0.0
 
-        if metrics:
-            dataset_result = metrics[0].get("result", {})
-            drift_score = dataset_result.get("drift_share", 0.0)
-            columns = dataset_result.get("drift_by_columns", {})
-            for col_name, col_data in columns.items():
-                if col_data.get("drift_detected", False):
-                    drifted.append(col_name)
+        for metric in metrics:
+            name = metric.get("metric", "")
+            result = metric.get("result", {})
+            if name == "DataDriftTable":
+                drift_score = result.get("share_of_drifted_columns", 0.0)
+                for col_name, col_data in result.get("drift_by_columns", {}).items():
+                    if col_data.get("drift_detected", False):
+                        drifted.append(col_name)
+                break
 
         min_features = int(
             self._monitoring.get("min_drifted_features_for_retrain", 2)

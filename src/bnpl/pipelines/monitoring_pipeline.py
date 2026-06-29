@@ -180,12 +180,12 @@ class MonitoringPipeline(LoggerMixin):
     def _load_window_data(self, window_label: str) -> pd.DataFrame:
         """Load data for a monitoring window from the processed directory.
 
-        Attempts to find a parquet file matching the window label in
-        the processed data directory.
-
         Args:
             window_label: Window identifier used to locate the data file.
-                          Tries ``{label}.parquet`` and common variants.
+                          Known labels: "2018" → drift_2018.parquet,
+                          "2017" → test.parquet, "2016" → val.parquet,
+                          "train" → train.parquet. Unknown labels try
+                          {label}.parquet then drift_{label}.parquet.
 
         Returns:
             pd.DataFrame: Raw window data.
@@ -194,12 +194,21 @@ class MonitoringPipeline(LoggerMixin):
             FileNotFoundError: If no matching data file is found.
         """
         data_dir = Path(self._processed_data_dir)
-        candidates = [
-            data_dir / f"{window_label}.parquet",
-            data_dir / f"{window_label}_data.parquet",
-            data_dir / "val.parquet",
-            data_dir / "test.parquet",
-        ]
+
+        known_windows = {
+            "2018": "drift_2018.parquet",
+            "2017": "test.parquet",
+            "2016": "val.parquet",
+            "train": "train.parquet",
+        }
+
+        if window_label in known_windows:
+            candidates = [data_dir / known_windows[window_label]]
+        else:
+            candidates = [
+                data_dir / f"{window_label}.parquet",
+                data_dir / f"drift_{window_label}.parquet",
+            ]
 
         for path in candidates:
             if path.exists():

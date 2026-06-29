@@ -1,0 +1,128 @@
+[
+  {
+    "should_retrain": false,
+    "drift_report": {
+      "window": "2018",
+      "drift_detected": false,
+      "failure_type": "clean",
+      "drifted_features": [],
+      "drift_score": 0.5,
+      "recommended_action": "No action needed.",
+      "should_retrain": false
+    },
+    "approval_rate": 0.5207,
+    "baseline_approval_rate": 0.506,
+    "window": "2018",
+    "timestamp": "2026-06-29T16:38:29.664765+00:00"
+  },
+  {
+    "should_retrain": false,
+    "drift_report": {
+      "window": "2018",
+      "drift_detected": false,
+      "failure_type": "clean",
+      "drifted_features": [],
+      "drift_score": 0.5,
+      "recommended_action": "No action needed.",
+      "should_retrain": false
+    },
+    "approval_rate": 0.5682,
+    "baseline_approval_rate": 0.506,
+    "window": "2018",
+    "timestamp": "2026-06-29T17:01:14.243878+00:00"
+  },
+  {
+    "should_retrain": false,
+    "drift_report": {
+      "window": "2018",
+      "drift_detected": false,
+      "failure_type": "clean",
+      "drifted_features": [],
+      "drift_score": 0.5,
+      "recommended_action": "No action needed.",
+      "should_retrain": false
+    },
+    "approval_rate": 0.5682,
+    "baseline_approval_rate": 0.506,
+    "window": "2018",
+    "timestamp": "2026-06-29T17:02:19.998712+00:00"
+  },
+  {
+    "should_retrain": false,
+    "drift_report": {
+      "window": "2018",
+      "drift_detected": false,
+      "failure_type": "clean",
+      "drifted_features": [],
+      "drift_score": 0.5,
+      "recommended_action": "No action needed.",
+      "should_retrain": false
+    },
+    "approval_rate": 0.5682,
+    "baseline_approval_rate": 0.506,
+    "window": "2018",
+    "timestamp": "2026-06-29T17:02:53.297313+00:00"
+  },
+  {
+    "should_retrain": false,
+    "drift_report": {
+      "window": "2016",
+      "drift_detected": false,
+      "failure_type": "clean",
+      "drifted_features": [],
+      "drift_score": 0.5,
+      "recommended_action": "No action needed.",
+      "should_retrain": false
+    },
+    "approval_rate": 0.5207,
+    "baseline_approval_rate": 0.506,
+    "window": "2016",
+    "timestamp": "2026-06-29T17:04:52.342264+00:00"
+  },
+  {
+    "should_retrain": false,
+    "drift_report": {
+      "window": "2018",
+      "drift_detected": true,
+      "failure_type": "real_drift",
+      "drifted_features": [
+        "annual_inc_capped",
+        "delinq_2yrs",
+        "dti_capped",
+        "fico_range_low",
+        "inq_last_6mths",
+        "int_rate",
+        "loan_amnt",
+        "revol_bal_capped",
+        "revol_util_capped",
+        "sub_grade_encoded"
+      ],
+      "drift_score": 0.2128,
+      "recommended_action": "Multiple features drifted (10). Consider retraining.",
+      "should_retrain": false
+    },
+    "approval_rate": 0.5682,
+    "baseline_approval_rate": 0.506,
+    "window": "2018",
+    "timestamp": "2026-06-29T18:02:59.713518+00:00"
+  },
+  {
+    "should_retrain": false,
+    "drift_report": {
+      "window": "2016",
+      "drift_detected": true,
+      "failure_type": "real_drift",
+      "drifted_features": [
+        "int_rate",
+        "revol_util_capped"
+      ],
+      "drift_score": 0.0426,
+      "recommended_action": "Multiple features drifted (2). Consider retraining.",
+      "should_retrain": false
+    },
+    "approval_rate": 0.5207,
+    "baseline_approval_rate": 0.506,
+    "window": "2016",
+    "timestamp": "2026-06-29T18:03:36.780995+00:00"
+  }
+]
